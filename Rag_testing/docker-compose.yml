@@ -1,0 +1,17 @@
+# Neo4j Community for the graph store. Chroma is embedded (no server needed).
+#   Start:  docker compose up -d
+#   Browser: http://localhost:7474  (user: neo4j, pass: testpassword)
+#   Bolt:    bolt://localhost:7687
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: rag-testbed-neo4j
+    ports:
+      - "7474:7474"   # HTTP browser
+      - "7687:7687"   # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/testpassword
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - ./neo4j_data:/data
+    restart: unless-stopped

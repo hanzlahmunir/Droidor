@@ -1,0 +1,42 @@
+# `docker compose up` is the ONLY command the README asks for. It must:
+#   1. start Postgres,
+#   2. wait until Postgres is actually accepting connections,
+#   3. start the app, which runs `alembic upgrade head` then serves.
+#
+# Env values come from the .env file next to this file (compose loads it
+# automatically). .env is gitignored; .env.example documents the keys.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    # Persist data across restarts so you don't lose rows on `docker compose down`.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Healthcheck is what makes "just works" real: the app waits on this.
+    # pg_isready returns 0 only once Postgres can accept connections.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    # DATABASE_URL points at the `db` service by its compose hostname.
+    # psycopg driver -> "postgresql+psycopg://".
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    depends_on:
+      db:
+        # Don't start the API until the DB healthcheck passes, otherwise the
+        # first `alembic upgrade` would hit a not-yet-ready Postgres and crash.
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

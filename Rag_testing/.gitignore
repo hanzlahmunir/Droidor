@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Secrets
+.env
+*.key
+# Neo4j Aura credentials dump (downloaded at instance creation)
+Neo4j-*.txt
+*-Created-*.txt
+
+# Data & build artifacts (large / regenerable)
+data/
+chroma_db/
+*.parquet
+
+# Hugging Face cache
+.cache/
+huggingface/
+
+# Neo4j
+neo4j_data/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Streamlit run log
+streamlit.log
+
+# Backend logs & saved runs (local artifacts)
+logs/
+runs/
+
+# Saved UI layout (local, per-machine)
+.layout.json

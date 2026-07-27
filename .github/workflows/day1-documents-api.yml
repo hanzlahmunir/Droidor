@@ -1,0 +1,57 @@
+name: Day1 Documents API
+
+# Run on every push and PR that touches the Day 1 project (or the workflow).
+on:
+  push:
+    paths:
+      - "Day1_Documents-API/**"
+      - ".github/workflows/day1-documents-api.yml"
+  pull_request:
+    paths:
+      - "Day1_Documents-API/**"
+      - ".github/workflows/day1-documents-api.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    # A real Postgres, exactly like the rule requires (no SQLite).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: docuser
+          POSTGRES_PASSWORD: docpass
+          POSTGRES_DB: documents_test
+        ports:
+          - 5432:5432
+        # Wait for Postgres to be ready before the job's steps run.
+        options: >-
+          --health-cmd "pg_isready -U docuser -d documents_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    # Every run step executes inside the Day 1 project dir.
+    defaults:
+      run:
+        working-directory: Day1_Documents-API
+
+    env:
+      # conftest copies TEST_DATABASE_URL into DATABASE_URL; set both to the
+      # CI Postgres exposed on localhost:5432.
+      TEST_DATABASE_URL: postgresql+psycopg://docuser:docpass@localhost:5432/documents_test
+      DATABASE_URL: postgresql+psycopg://docuser:docpass@localhost:5432/documents_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests (fixtures apply the Alembic migration)
+        run: pytest -v

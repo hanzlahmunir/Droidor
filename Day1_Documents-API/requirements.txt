@@ -1,0 +1,13 @@
+# Pinned to a specific minor line for reproducible builds across dev/CI.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+sqlalchemy==2.0.36
+alembic==1.14.0
+# psycopg 3 (the "psycopg" package, binary build) — modern replacement for
+# psycopg2. Matches the "postgresql+psycopg://" URL scheme used everywhere.
+psycopg[binary]==3.2.3
+pydantic==2.10.4
+# Test deps kept here too so the single `pip install -r requirements.txt`
+# in the Dockerfile covers running tests inside the container/CI.
+pytest==8.3.4
+httpx==0.28.1
