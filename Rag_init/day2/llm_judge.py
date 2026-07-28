@@ -28,7 +28,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-API_KEY = "AQ.Ab8RN6KYb9ZmoBn91Rj_GE6Eo31GqMDkOJHSi0fLiAqUblajUw"  # key 4 (live)
+API_KEY = os.environ.get("GOOGLE_API_KEY")  # set via environment / .env, never hardcode
 os.environ["GOOGLE_API_KEY"] = API_KEY
 
 BOOK_PATH    = Path(__file__).parent.parent / "day1" / "gatsby.txt"

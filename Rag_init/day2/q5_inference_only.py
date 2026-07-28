@@ -4,7 +4,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-os.environ["GOOGLE_API_KEY"] = "AQ.Ab8RN6KYb9ZmoBn91Rj_GE6Eo31GqMDkOJHSi0fLiAqUblajUw"
+# GOOGLE_API_KEY must be set via environment / .env — never hardcode a key here.
 llm = init_chat_model("gemini-flash-latest", model_provider="google_genai", temperature=0)
 
 QUESTION = "How does Gatsby die?"

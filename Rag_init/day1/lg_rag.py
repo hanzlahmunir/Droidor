@@ -18,7 +18,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import StateGraph, END
 
 # ── Config ────────────────────────────────────────────────────────────────────
-API_KEY = "AQ.Ab8RN6L5WoVoHIRxxx3h4PdsTuub41-kMGg_ZKZ3tdbanzhN9A"
+API_KEY = os.environ.get("GOOGLE_API_KEY")  # set via environment / .env, never hardcode
 os.environ["GOOGLE_API_KEY"] = API_KEY
 
 llm = ChatGoogleGenerativeAI(model="gemini-flash-latest", temperature=0)

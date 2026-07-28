@@ -21,7 +21,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-API_KEY = "AQ.Ab8RN6L5WoVoHIRxxx3h4PdsTuub41-kMGg_ZKZ3tdbanzhN9A"
+API_KEY = os.environ.get("GOOGLE_API_KEY")  # set via environment / .env, never hardcode
 os.environ["GOOGLE_API_KEY"] = API_KEY
 
 llm = init_chat_model("gemini-flash-latest", model_provider="google_genai", temperature=0)
