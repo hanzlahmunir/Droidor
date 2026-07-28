@@ -18,7 +18,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Now the app code.
 COPY . .
 
-RUN chmod +x entrypoint.sh
+# Strip any Windows carriage returns and make it executable. A CRLF entrypoint
+# turns the shebang into `bash\r`, which Linux can't find -> the container exits
+# 127 ("command not found"). This line makes the build robust even if someone
+# clones on Windows with core.autocrlf=true. (.gitattributes also forces LF.)
+RUN sed -i 's/\r$//' entrypoint.sh && chmod +x entrypoint.sh
 
 EXPOSE 8000
 

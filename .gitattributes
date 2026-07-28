@@ -1,0 +1,14 @@
+# Force LF line endings for files that MUST be LF to work inside Linux
+# containers. Without this, a Windows clone (core.autocrlf=true) rewrites these
+# with CRLF, the shebang becomes `bash\r`, and the container exits 127
+# ("command not found"). This guarantees LF regardless of who clones.
+*.sh   text eol=lf
+entrypoint.sh text eol=lf
+
+# Shell/Docker files that run in Linux should also stay LF.
+Dockerfile     text eol=lf
+*.yml          text eol=lf
+*.yaml         text eol=lf
+
+# Let git handle normal text normally; keep Python LF for consistency.
+*.py    text eol=lf
