@@ -22,6 +22,7 @@ auth and 400s are not, so they are reported differently rather than retried.
 """
 
 import json
+import sys
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -36,6 +37,35 @@ from app.tools import TOOL_SCHEMAS, run_tool
 # is a paid API call, so this is a cost guard as much as a liveness guard.
 _MAX_TOOL_ITERATIONS = 8
 
+# Retries for the specific transient failure described below. Measured at
+# roughly 1 call in 6 on llama-3.3-70b-versatile with three tools attached
+# (2026-07-29), so a 10-turn session would almost always hit it at least once.
+_MAX_GENERATION_RETRIES = 3
+
+# Groq reports two very different situations through its error types:
+#
+#   (a) a genuinely malformed request -- e.g. history containing a tool_call
+#       with no matching tool result. Retrying is pointless; it fails forever.
+#
+#   (b) the MODEL failed to emit valid tool-call JSON on this attempt. The
+#       request was fine. Retrying the identical payload usually succeeds,
+#       because generation is sampled and the next sample is well-formed.
+#
+# Treating (b) as permanent kills the session on a recoverable hiccup;
+# treating (a) as retryable burns three calls to fail anyway.
+#
+# The exception TYPE cannot distinguish them, and this is the subtle part:
+# the same underlying failure surfaces as BadRequestError when it happens on
+# the initial call, but as a bare APIError when it happens partway through
+# consuming the stream (verified 2026-07-29). So we classify on the message
+# marker and check both types.
+_RETRYABLE_GENERATION_MARKER = "failed to call a function"
+
+
+def _is_retryable_generation_error(exc: Exception) -> bool:
+    """True for case (b) above: model-side tool-call generation failure."""
+    return _RETRYABLE_GENERATION_MARKER in str(exc).lower()
+
 
 class ChatError(RuntimeError):
     """A turn failed in a way the user should be told about."""
@@ -48,6 +78,30 @@ class TurnResult:
     input_tokens: int
     output_tokens: int
     cost_usd: float
+
+
+def _default_emit(chunk: str) -> None:
+    """Print a streamed chunk, surviving terminals that cannot encode it.
+
+    On Windows the console defaults to cp1252, which cannot represent emoji or
+    most non-Latin text. The model emits both freely, and an uncaught
+    UnicodeEncodeError here would kill the chat from inside the PRINT path --
+    defeating the never-crash guarantee at the last possible step.
+
+    cli.py reconfigures stdout to UTF-8 at startup, which fixes this properly.
+    This fallback covers callers that bypass cli.py (benchmark.py, tests) and
+    any terminal where reconfiguration is not possible: unencodable characters
+    are replaced rather than raising.
+    """
+    try:
+        print(chunk, end="", flush=True)
+    except UnicodeEncodeError:
+        encoding = sys.stdout.encoding or "utf-8"
+        print(
+            chunk.encode(encoding, errors="replace").decode(encoding),
+            end="",
+            flush=True,
+        )
 
 
 def _usage_tokens(usage: Any) -> tuple[int, int]:
@@ -65,6 +119,74 @@ def _usage_tokens(usage: Any) -> tuple[int, int]:
     )
 
 
+def _stream_completion(
+    client: groq.Groq,
+    conversation: Conversation,
+    cfg: Any,
+    model: str,
+    emit: Callable[[str], None],
+) -> tuple[list[str], dict[int, dict[str, Any]], str | None, Any, bool]:
+    """Make one streaming request and consume it fully.
+
+    Returns (text_parts, tool_calls, finish_reason, usage, printed_any).
+    Lets groq exceptions propagate so the caller can classify and retry them.
+    """
+    stream = client.chat.completions.create(
+        model=model,
+        messages=conversation.to_api_messages(),
+        tools=TOOL_SCHEMAS,
+        max_tokens=cfg.max_tokens,
+        stream=True,
+        # NOTE: no stream_options here. The OpenAI-style
+        # stream_options={"include_usage": True} is not a named parameter in
+        # groq 0.31.1, and it is not needed: Groq attaches a `usage` object to
+        # the final chunk of a stream by default (verified 2026-07-29 against
+        # llama-3.3-70b-versatile). If a future SDK version stops doing this,
+        # _usage_tokens() returns zeros and the cost log shows 0-token rows
+        # rather than crashing.
+    )
+
+    text_parts: list[str] = []
+    # tool_calls arrive fragmented across chunks: the id and name come first,
+    # then arguments stream in as JSON string deltas. Reassemble them by index
+    # before anything can be executed.
+    tool_calls: dict[int, dict[str, Any]] = {}
+    finish_reason: str | None = None
+    usage = None
+    printed_any = False
+
+    for chunk in stream:
+        if getattr(chunk, "usage", None):
+            usage = chunk.usage
+
+        if not chunk.choices:
+            continue
+
+        choice = chunk.choices[0]
+        delta = choice.delta
+
+        if choice.finish_reason:
+            finish_reason = choice.finish_reason
+
+        if delta.content:
+            text_parts.append(delta.content)
+            emit(delta.content)
+            printed_any = True
+
+        for tc in delta.tool_calls or []:
+            slot = tool_calls.setdefault(
+                tc.index, {"id": "", "name": "", "arguments": ""}
+            )
+            if tc.id:
+                slot["id"] = tc.id
+            if tc.function and tc.function.name:
+                slot["name"] = tc.function.name
+            if tc.function and tc.function.arguments:
+                slot["arguments"] += tc.function.arguments
+
+    return text_parts, tool_calls, finish_reason, usage, printed_any
+
+
 def run_turn(
     client: groq.Groq,
     conversation: Conversation,
@@ -80,7 +202,7 @@ def run_turn(
     Raises ChatError on unrecoverable API failure; the caller rolls back.
     """
     model = model or cfg.chat_model
-    emit = on_text or (lambda chunk: print(chunk, end="", flush=True))
+    emit = on_text or _default_emit
 
     api_calls = 0
     total_in = 0
@@ -89,80 +211,52 @@ def run_turn(
     final_text = ""
 
     for iteration in range(_MAX_TOOL_ITERATIONS):
-        try:
-            stream = client.chat.completions.create(
-                model=model,
-                messages=conversation.to_api_messages(),
-                tools=TOOL_SCHEMAS,
-                max_tokens=cfg.max_tokens,
-                stream=True,
-                # NOTE: no stream_options here. The OpenAI-style
-                # stream_options={"include_usage": True} is not a named
-                # parameter in groq 0.31.1, and it is not needed: Groq attaches
-                # a `usage` object to the final chunk of a stream by default
-                # (verified 2026-07-29 against llama-3.3-70b-versatile).
-                # We read it in the loop below. If a future SDK version stops
-                # doing this, _usage_tokens() returns zeros and the cost log
-                # shows 0-token rows rather than crashing.
-            )
-        except groq.AuthenticationError as exc:
-            # Not transient. Retrying will fail identically.
-            raise ChatError(f"Authentication failed - check GROQ_API_KEY. ({exc})") from None
-        except groq.RateLimitError as exc:
-            raise ChatError(
-                f"Rate limited by the API. Wait a moment and try again. ({exc})"
-            ) from None
-        except groq.BadRequestError as exc:
-            # Usually a malformed history, e.g. an orphaned tool call.
-            raise ChatError(f"The API rejected this request. ({exc})") from None
-        except groq.APIConnectionError as exc:
-            raise ChatError(f"Could not reach the API - check your connection. ({exc})") from None
-        except groq.APIStatusError as exc:
-            raise ChatError(f"API error {exc.status_code}. ({exc})") from None
-
-        # --- consume the stream ---------------------------------------------
-        text_parts: list[str] = []
-        # tool_calls arrive fragmented across chunks: the id and name come
-        # first, then arguments stream in as JSON string deltas. Reassemble
-        # them by index before anything can be executed.
-        tool_calls: dict[int, dict[str, Any]] = {}
-        finish_reason: str | None = None
-        usage = None
-        printed_any = False
-
-        try:
-            for chunk in stream:
-                if getattr(chunk, "usage", None):
-                    usage = chunk.usage
-
-                if not chunk.choices:
+        # The request and the stream consumption are retried together: this
+        # failure can surface either when the call is made or partway through
+        # reading the stream, and both mean the same thing.
+        for attempt in range(_MAX_GENERATION_RETRIES):
+            try:
+                text_parts, tool_calls, finish_reason, usage, printed_any = (
+                    _stream_completion(client, conversation, cfg, model, emit)
+                )
+                break
+            except groq.APIError as exc:
+                # Checked FIRST, before any type-based dispatch, because this
+                # failure arrives as BadRequestError from the initial call but
+                # as a bare APIError from mid-stream. Only the message is
+                # reliable across both.
+                if _is_retryable_generation_error(exc):
+                    if attempt == _MAX_GENERATION_RETRIES - 1:
+                        raise ChatError(
+                            "The model could not produce a valid tool call after "
+                            f"{_MAX_GENERATION_RETRIES} attempts."
+                        ) from None
+                    # Retry the identical payload. Nothing has been appended to
+                    # history yet, so there is no state to undo.
+                    emit("\n  [retrying...] ")
                     continue
 
-                choice = chunk.choices[0]
-                delta = choice.delta
-
-                if choice.finish_reason:
-                    finish_reason = choice.finish_reason
-
-                if delta.content:
-                    text_parts.append(delta.content)
-                    emit(delta.content)
-                    printed_any = True
-
-                for tc in delta.tool_calls or []:
-                    slot = tool_calls.setdefault(
-                        tc.index, {"id": "", "name": "", "arguments": ""}
-                    )
-                    if tc.id:
-                        slot["id"] = tc.id
-                    if tc.function and tc.function.name:
-                        slot["name"] = tc.function.name
-                    if tc.function and tc.function.arguments:
-                        slot["arguments"] += tc.function.arguments
-
-        except groq.APIError as exc:
-            # The stream died mid-flight. Partial text may already be on screen.
-            raise ChatError(f"The response was interrupted. ({exc})") from None
+                # Everything else: classify by type, most specific first.
+                # (BadRequestError/AuthenticationError/RateLimitError are all
+                # subclasses of APIStatusError, which is a subclass of APIError,
+                # so order matters here.)
+                if isinstance(exc, groq.AuthenticationError):
+                    raise ChatError(
+                        f"Authentication failed - check GROQ_API_KEY. ({exc})"
+                    ) from None
+                if isinstance(exc, groq.RateLimitError):
+                    raise ChatError(
+                        f"Rate limited by the API. Wait a moment and try again. ({exc})"
+                    ) from None
+                if isinstance(exc, groq.BadRequestError):
+                    raise ChatError(f"The API rejected this request. ({exc})") from None
+                if isinstance(exc, groq.APIConnectionError):
+                    raise ChatError(
+                        f"Could not reach the API - check your connection. ({exc})"
+                    ) from None
+                if isinstance(exc, groq.APIStatusError):
+                    raise ChatError(f"API error {exc.status_code}. ({exc})") from None
+                raise ChatError(f"The response was interrupted. ({exc})") from None
 
         # --- account for this call ------------------------------------------
         api_calls += 1

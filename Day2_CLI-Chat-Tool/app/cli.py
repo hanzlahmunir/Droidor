@@ -55,7 +55,31 @@ def _print_cost(logger: CostLogger) -> None:
         print(f"  models: {breakdown}")
 
 
+def _force_utf8_stdout() -> None:
+    """Make stdout/stderr UTF-8 so model output cannot crash the terminal.
+
+    Windows consoles default to cp1252, which cannot encode emoji or most
+    non-Latin scripts -- both of which the model produces unprompted. Without
+    this, printing a single emoji raises UnicodeEncodeError from inside the
+    print call and takes down the chat.
+
+    errors="replace" is a second line of defence for anything still unmappable
+    after the switch.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (ValueError, OSError):
+                # Redirected to a pipe that refuses reconfiguration; the
+                # fallback in api._default_emit still applies.
+                pass
+
+
 def main() -> int:
+    _force_utf8_stdout()
+
     try:
         cfg = Config()
     except KeyError as exc:

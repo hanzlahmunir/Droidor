@@ -25,8 +25,12 @@ class Config:
         # to DuckDuckGo. We normalise to None so callers do a simple `if`.
         self.tavily_api_key: str | None = os.environ.get("TAVILY_API_KEY") or None
 
-        self.chat_model: str = os.environ.get("CHAT_MODEL", "llama-3.3-70b-versatile")
-        self.cheap_model: str = os.environ.get("CHEAP_MODEL", "llama-3.1-8b-instant")
+        # Defaults chosen by measurement, not preference: on a tool-heavy
+        # prompt llama-3.3-70b-versatile answered 0/4 correctly and failed to
+        # emit valid tool-call JSON on 1 call in 4, while gpt-oss-120b was 4/4
+        # with no failures -- and is ~4x cheaper on input. See docs/COST.md.
+        self.chat_model: str = os.environ.get("CHAT_MODEL", "openai/gpt-oss-120b")
+        self.cheap_model: str = os.environ.get("CHEAP_MODEL", "openai/gpt-oss-20b")
 
         self.cost_log_path: str = os.environ.get("COST_LOG_PATH", "logs/cost_log.jsonl")
 

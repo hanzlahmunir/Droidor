@@ -1,0 +1,100 @@
+{
+  "ts": "2026-07-29T07:15:14.165700+00:00",
+  "session_id": "20260729T071336Z",
+  "config": "baseline",
+  "type": "session_summary",
+  "turns": 10,
+  "api_calls": 15,
+  "input_tokens": 21959,
+  "output_tokens": 1170,
+  "total_cost_usd": 0.00399585,
+  "cost_per_turn_usd": 0.00039958499999999994,
+  "per_model_calls": {
+    "openai/gpt-oss-120b": 15
+  },
+  "description": "full history resent every turn, gpt-oss-120b only, untruncated tool results",
+  "recall_passed": 3,
+  "recall_total": 3,
+  "per_turn": [
+    {
+      "turn": 0,
+      "input_tokens": 324,
+      "output_tokens": 44,
+      "cost_usd": 7.500000000000001e-05,
+      "api_calls": 1,
+      "recall_ok": null
+    },
+    {
+      "turn": 1,
+      "input_tokens": 365,
+      "output_tokens": 54,
+      "cost_usd": 8.714999999999999e-05,
+      "api_calls": 1,
+      "recall_ok": null
+    },
+    {
+      "turn": 2,
+      "input_tokens": 415,
+      "output_tokens": 64,
+      "cost_usd": 0.00010065,
+      "api_calls": 1,
+      "recall_ok": null
+    },
+    {
+      "turn": 3,
+      "input_tokens": 971,
+      "output_tokens": 62,
+      "cost_usd": 0.00018285,
+      "api_calls": 2,
+      "recall_ok": null
+    },
+    {
+      "turn": 4,
+      "input_tokens": 4722,
+      "output_tokens": 529,
+      "cost_usd": 0.0010257,
+      "api_calls": 4,
+      "recall_ok": null
+    },
+    {
+      "turn": 5,
+      "input_tokens": 4771,
+      "output_tokens": 65,
+      "cost_usd": 0.0007546499999999999,
+      "api_calls": 2,
+      "recall_ok": null
+    },
+    {
+      "turn": 6,
+      "input_tokens": 2458,
+      "output_tokens": 161,
+      "cost_usd": 0.00046530000000000003,
+      "api_calls": 1,
+      "recall_ok": null
+    },
+    {
+      "turn": 7,
+      "input_tokens": 2609,
+      "output_tokens": 59,
+      "cost_usd": 0.00042675,
+      "api_calls": 1,
+      "recall_ok": true
+    },
+    {
+      "turn": 8,
+      "input_tokens": 2640,
+      "output_tokens": 51,
+      "cost_usd": 0.00042659999999999996,
+      "api_calls": 1,
+      "recall_ok": true
+    },
+    {
+      "turn": 9,
+      "input_tokens": 2684,
+      "output_tokens": 81,
+      "cost_usd": 0.0004512,
+      "api_calls": 1,
+      "recall_ok": true
+    }
+  ]
+}
