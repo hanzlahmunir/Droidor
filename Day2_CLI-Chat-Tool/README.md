@@ -197,5 +197,24 @@ request* is rejected — the chat would appear to work, then fail permanently.
 
 ## Cost optimisation
 
-See [docs/COST.md](docs/COST.md) for the measured before/after numbers and the
-attribution of each change.
+| | cost/turn |
+|---|---|
+| Before — full history, no optimisations | $0.000275 |
+| After — per-tool caps + cheap-model routing | **$0.000218** (−21%) |
+
+Memory recall stayed 3/3 throughout. Both figures come from runs with matching
+API call counts — that control matters, because call count correlates 0.74
+with cost and varies run to run on identical input, independently of
+configuration.
+
+The brief asked for 50%. This is 21%, and
+[docs/COST.md](docs/COST.md) explains why 50% is not reachable on this
+workload with these levers: routing has a hard 30% ceiling (the cheap model is
+exactly 2× cheaper and 41% of tokens are on tool turns that must stay on the
+capable model), the cheapest available model fails recall 2/6 and is
+unusable, and summarisation needs ~10 further turns per invocation to break
+even. Prompt caching would be the missing lever, but Groq does not offer it on
+these models.
+
+Full per-change attribution, the two bugs found while measuring, and what
+would be needed to reach 50%: [docs/COST.md](docs/COST.md).

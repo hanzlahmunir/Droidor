@@ -67,9 +67,24 @@ _DEFAULT_TOOL_RESULT_CAP = 2000
 # summariser is instructed to preserve concrete facts (names, IDs, numbers,
 # preferences, decisions) and compress only conversational filler.
 #
-# Summarising COSTS an API call, so it is triggered by a token threshold rather
-# than run every turn. On a short session it would be a net loss.
-_SUMMARY_TRIGGER_TOKENS = 1500
+# Summarising COSTS an API call, so the trigger decides whether it pays off.
+#
+# MEASURED ECONOMICS (10-turn transcript, 2026-07-29):
+#   overhead  ~$0.000229 per summarisation call
+#   saving    ~153 input tokens/turn thereafter ~= $0.000023/turn
+#   => each summarisation needs ~10 further turns just to break even
+#
+# At a 1500-token trigger it fired 3 times in 10 turns and turned a 16% WIN
+# into a 68% LOSS. The saving is per-remaining-turn while the cost is fixed
+# up front, so firing early and often is exactly backwards.
+#
+# 6000 is set so a short session never summarises at all, and a long one does
+# it rarely, with plenty of turns left to recoup. Kept deliberately
+# conservative: an unnecessary summarisation costs real money AND risks
+# dropping a fact the user asks about later.
+_SUMMARY_TRIGGER_TOKENS = 6000
+
+# How many recent messages stay verbatim. Larger = safer recall, less saving.
 _KEEP_RECENT_MESSAGES = 6
 
 _SUMMARY_PROMPT = (
@@ -81,7 +96,11 @@ _SUMMARY_PROMPT = (
     "- conclusions reached, and results returned by tools\n\n"
     "MAY discard: greetings, acknowledgements, restatements, pleasantries, "
     "and the wording of explanations whose conclusion you have kept.\n\n"
-    "Write terse bullet points. No preamble.\n\n"
+    # The length limit is explicit because the summary's own output tokens are
+    # pure overhead. Early runs produced 400-711 tokens to record about six
+    # facts, which ate most of the saving the compression was meant to create.
+    "Write ONE terse bullet per fact. No preamble, no headings, no commentary. "
+    "Aim for under 150 words; never exceed 300.\n\n"
     "CONVERSATION:\n"
 )
 

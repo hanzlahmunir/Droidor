@@ -23,6 +23,7 @@ from app.api import ChatError, run_turn
 from app.config import Config
 from app.conversation import Conversation
 from app.costlog import CostLogger
+from app.optimize import OptimizationFlags
 
 SYSTEM_PROMPT = (
     "You are a concise, helpful CLI assistant. "
@@ -90,7 +91,21 @@ def main() -> int:
 
     client = groq.Groq(api_key=cfg.groq_api_key)
     conversation = Conversation(SYSTEM_PROMPT, transcript_path="logs/transcript.jsonl")
-    cost_logger = CostLogger(cfg.cost_log_path, config_label="baseline")
+
+    # The optimisations that measured as genuine wins with recall intact:
+    # per-tool result caps (-16%) and cheap-model routing (-22% combined),
+    # both verified at matched API call counts. See docs/COST.md.
+    #
+    # Summarisation is deliberately OFF: measured as a net loss on sessions of
+    # this length (fixed ~$0.000229 overhead per summarisation against
+    # ~$0.000023/turn saving, so it needs ~10 further turns to break even).
+    # It is kept in the codebase because the economics invert on long sessions.
+    flags = OptimizationFlags(
+        truncate_tool_results=True,
+        route_models=True,
+        summarize_history=False,
+    )
+    cost_logger = CostLogger(cfg.cost_log_path, config_label=flags.label)
 
     print(_BANNER)
     print(f"model: {cfg.chat_model}")
@@ -135,6 +150,7 @@ def main() -> int:
                 cost_logger=cost_logger,
                 cfg=cfg,
                 turn_index=turn_index,
+                flags=flags,
             )
             print()
             cost_logger.mark_turn_complete()

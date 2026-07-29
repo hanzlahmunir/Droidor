@@ -2,13 +2,29 @@
 
 WHY REPEATS ARE NOT OPTIONAL: a single run per config is not evidence. The
 model decides how many times to search, and that choice varies between runs
-on identical input. Measured spread on this transcript is up to ~23% of the
-mean, which is larger than several of the effects being measured -- so a
-single-run comparison can rank a worse config above a better one purely by
-luck. (An early single-run measurement did exactly that.)
+on identical input. Measured spread is up to ~23% of the mean, larger than
+several of the effects being measured -- so a single-run comparison can rank
+a worse config above a better one purely by luck. (An early single-run
+measurement did exactly that, reporting a 16% win that later runs did not
+reproduce.)
 
-Reports mean, stdev and range per config, and recall alongside cost, because
-a cheaper config that forgets the user's name is not an improvement.
+WHY MEANS ALONE ARE ALSO NOT ENOUGH -- the important finding of this exercise.
+Across 20 ten-turn runs, correlation between API CALL COUNT and cost per turn
+is 0.739. Call count is set by how many times the model chooses to search,
+which varies run to run independently of configuration. It therefore swamps
+the effects being measured: averaging runs with 13 calls against runs with 17
+compares search luck, not configuration.
+
+Controlling for call count separates them cleanly:
+
+    at 13 calls   baseline $0.000267-0.000281 (n=8)   trunc $0.000230
+    at 14 calls   baseline $0.000281               trunc+routing $0.000213, $0.000223
+
+So `report_matched()` below groups by call count, and that grouping -- not the
+headline mean -- is what docs/COST.md quotes.
+
+Recall is reported alongside cost throughout, because a cheaper config that
+forgets the user's name is a downgrade, not an optimisation.
 
 Usage:
     python compare.py --repeats 3
@@ -60,6 +76,45 @@ CONFIGS: list[tuple[str, str, OptimizationFlags]] = [
         ),
     ),
 ]
+
+
+def report_matched(cost_log_path: str = "logs/cost_log.jsonl") -> None:
+    """Group every recorded 10-turn run by API call count, then by config.
+
+    This is the comparison that actually isolates the configuration. Averaging
+    across call counts measures how often the model felt like searching; this
+    holds that constant and lets the config be the only difference.
+    """
+    by_calls: dict[int, list[tuple[str, dict]]] = {}
+    try:
+        with open(cost_log_path, encoding="utf-8") as handle:
+            for line in handle:
+                record = json.loads(line)
+                if record.get("type") == "session_summary" and record.get("turns") == 10:
+                    by_calls.setdefault(record["api_calls"], []).append(
+                        (record["config"], record)
+                    )
+    except FileNotFoundError:
+        print(f"no cost log at {cost_log_path}")
+        return
+
+    print(f"\n{'=' * 74}")
+    print("MATCHED COMPARISON - grouped by API call count")
+    print("(call count correlates 0.74 with cost and varies independently of")
+    print(" configuration, so only same-count runs are comparable)")
+    print("=" * 74)
+
+    for call_count in sorted(by_calls):
+        entries = by_calls[call_count]
+        if len(entries) < 2:
+            continue  # nothing to compare against
+        print(f"\n  {call_count} API calls:")
+        by_config: dict[str, list[float]] = {}
+        for config, record in entries:
+            by_config.setdefault(config, []).append(record["cost_per_turn_usd"])
+        for config, costs in sorted(by_config.items()):
+            mean = statistics.mean(costs)
+            print(f"    {config:<18} n={len(costs)}  ${mean:.6f}")
 
 
 def main() -> int:
@@ -145,6 +200,8 @@ def main() -> int:
             f"${r['stdev']:>9.6f} {delta:>9} "
             f"{r['mean_api_calls']:>6.1f} {recall:>8}"
         )
+
+    report_matched()
 
     Path("docs").mkdir(exist_ok=True)
     with open("docs/comparison.json", "w", encoding="utf-8") as handle:
