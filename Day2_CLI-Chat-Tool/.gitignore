@@ -1,0 +1,6 @@
+# Local virtualenv for this day's project
+.venv/
+
+# Cost logs and transcripts are run artifacts, not source.
+# The frozen benchmark results live in docs/ and ARE committed.
+logs/
