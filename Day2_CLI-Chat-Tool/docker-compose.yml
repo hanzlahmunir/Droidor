@@ -1,19 +1,33 @@
-# `docker compose up` starts an interactive chat session.
+# Start the chat with:   docker compose run --rm chat
 #
-# Unlike Day 1 (a server that listens and needs no terminal), this is an
-# interactive CLI, so two settings are load-bearing:
+# NOT `docker compose up`. This was tested, not assumed:
 #
-#   stdin_open: true  ->  keeps stdin attached so input() can read your typing
-#   tty: true         ->  allocates a pseudo-terminal so the prompt renders
+#   `up` runs the log-multiplexing view -- the one that prefixes every line
+#   with "day2-chat  | ". That view is one-directional by design. It displays
+#   container output and never forwards your keystrokes, so the chat prints
+#   its banner and then ignores everything you type. `stdin_open: true`,
+#   `tty: true` and `attach: true` do NOT change this; they control the
+#   container's own stdin and terminal, not what the `up` command does with
+#   your keyboard.
 #
-# Without BOTH, `docker compose up` starts the chat, prints the banner, then
-# immediately hits EOF on stdin and exits -- a chat you cannot type into.
+#   `run` attaches your terminal directly to the container, the way
+#   `docker run -it` does. It is the correct command for an interactive CLI.
+#
+# Day 1 was a server: it listened on a port and needed no terminal, so `up`
+# was right there. This is a REPL, so it is not.
+#
+# stdin_open + tty are still required below -- they are what makes the
+# container capable of interactive input once `run` connects to it.
 
 services:
   chat:
     build: .
     # Fixed name so `docker attach` and `docker compose exec` are predictable.
     container_name: day2-chat
+    # Behind a profile so `docker compose up` does NOT start it. Starting it
+    # there would produce a chat that ignores your typing; `up` runs the
+    # up-notice service instead, which tells you the right command.
+    profiles: ["chat"]
 
     # Secrets come from .env (gitignored). Compose reads that file
     # automatically; only these two are passed into the container.
@@ -25,7 +39,9 @@ services:
       CHEAP_MODEL: ${CHEAP_MODEL:-openai/gpt-oss-20b}
       COST_LOG_PATH: ${COST_LOG_PATH:-logs/cost_log.jsonl}
 
-    # Required for an interactive REPL. See the note above.
+    # Required for an interactive REPL: these make the container able to
+    # accept typed input. They do not, on their own, make `up` forward it --
+    # see the note at the top of this file.
     stdin_open: true
     tty: true
 
@@ -39,8 +55,22 @@ services:
     # the conversation. Exiting with /exit is a normal, intended end state.
     restart: "no"
 
-  # Offline test suite. Not started by `docker compose up` -- it sits behind a
-  # profile so the default command stays "start the chat".
+  # `docker compose up` cannot host an interactive REPL (see the note at the
+  # top of this file). Rather than let it start a chat that silently ignores
+  # every keystroke, `up` runs this service instead: it verifies the image and
+  # credentials end to end, then prints the command that actually starts the
+  # chat. Failing loudly with instructions beats appearing to work.
+  up-notice:
+    build: .
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required - copy .env.example to .env and fill it in}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      CHAT_MODEL: ${CHAT_MODEL:-openai/gpt-oss-120b}
+    volumes:
+      - ./logs:/app/logs
+    command: ["python", "-m", "app.preflight"]
+
+  # Offline test suite. Behind a profile so it is not started by `up`.
   #   docker compose run --rm tests
   tests:
     build: .

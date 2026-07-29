@@ -10,14 +10,32 @@ No LangChain, no agent framework — the API loop is written by hand.
 ## Quick start
 
 ```bash
-cp .env.example .env      # then paste your keys into .env
-docker compose up
+cp .env.example .env             # then paste your keys into .env
+docker compose up                # builds, then verifies key + API reachability
+docker compose run --rm chat     # starts the chat
 ```
 
-That is the whole setup. `docker compose up` builds the image and drops you
-straight into an interactive chat.
+`docker compose up` runs a preflight check: it builds the image, confirms your
+API key works with a live call, and prints the command to start chatting.
 
 Type `/exit` to quit, or `/cost` at any time to see the session cost so far.
+
+> **Why two commands and not just `up`?**
+>
+> `docker compose up` cannot host an interactive prompt. It runs Compose's
+> log-multiplexing view — the one that prefixes each line with
+> `day2-chat  | ` — which *displays* container output but never forwards your
+> keystrokes. A chat started that way prints its banner and then silently
+> ignores everything you type. `stdin_open`, `tty` and `attach` do not change
+> this; they configure the container, not what `up` does with your keyboard.
+>
+> `docker compose run` attaches your terminal directly, the way
+> `docker run -it` does, which is what a REPL needs.
+>
+> Day 1 was a server: it listened on a port and needed no terminal, so `up`
+> was the right command there. This is a REPL, so it is not. Rather than let
+> `up` start a chat that appears to work but eats your input, it runs the
+> preflight check and points you at the command that does work.
 
 > **Only `GROQ_API_KEY` is required.** Get one free at
 > [console.groq.com/keys](https://console.groq.com/keys). `TAVILY_API_KEY` is
