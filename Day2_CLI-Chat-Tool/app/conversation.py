@@ -72,6 +72,20 @@ class Conversation:
         """
         del self.messages[marker:]
 
+    def record_event(self, event: dict[str, Any]) -> None:
+        """Write a non-message event to the transcript.
+
+        Used by the summariser, which rewrites `messages` wholesale instead of
+        appending. Without this the compressed summary -- the exact text the
+        model then reasons from -- would be absent from the log, making any
+        later recall failure impossible to diagnose.
+        """
+        if not self._transcript_path:
+            return
+        record = {"ts": datetime.now(timezone.utc).isoformat(), **event}
+        with self._transcript_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+
     def _write_transcript(self, message: dict[str, Any]) -> None:
         if not self._transcript_path:
             return

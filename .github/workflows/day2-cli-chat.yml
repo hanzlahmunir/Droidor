@@ -1,0 +1,52 @@
+name: Day2 CLI Chat Tool
+
+on:
+  push:
+    paths:
+      - "Day2_CLI-Chat-Tool/**"
+      - ".github/workflows/day2-cli-chat.yml"
+  pull_request:
+    paths:
+      - "Day2_CLI-Chat-Tool/**"
+      - ".github/workflows/day2-cli-chat.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Day2_CLI-Chat-Tool
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # Pinned to 3.12 for the same reason as Day 1: the host runs 3.14,
+          # which is too new for some wheels. Verified locally on 3.14 too.
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        # No API key is available in CI, and none is needed: the suite covers
+        # the calculator's AST allowlist, the SSRF guards, cost arithmetic,
+        # history rollback and the optimisation helpers -- all offline.
+        # The API loop itself is verified by benchmark.py, which needs a live
+        # key and is run locally (results committed in docs/).
+        run: python -m pytest -v
+
+      - name: Check no secrets are committed
+        # Cheap defence against the failure mode that has already bitten this
+        # repo once: a real key pasted into .env.example instead of .env.
+        run: |
+          if grep -rEq "gsk_[A-Za-z0-9]{30,}|tvly-dev-[A-Za-z0-9]{10,}" \
+              --include="*.py" --include="*.example" --include="*.md" .; then
+            echo "::error::A real API key appears to be committed."
+            exit 1
+          fi
+          echo "No secrets found."

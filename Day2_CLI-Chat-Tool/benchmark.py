@@ -32,13 +32,19 @@ from app.cli import _force_utf8_stdout
 from app.config import Config
 from app.conversation import Conversation
 from app.costlog import CostLogger
+from app.optimize import OptimizationFlags
 
 
 @dataclass(frozen=True)
 class Turn:
     prompt: str
-    # Substrings that must appear in the reply for recall to count as passed.
-    # None means this turn is not a recall check.
+    # Substrings, ANY of which counts as recalling the fact. None means this
+    # turn is not a recall check.
+    #
+    # Multiple spellings are listed deliberately. An early version checked only
+    # "Postgres" and scored a correct answer as a FAILURE because the model
+    # replied "PostgreSQL" -- the instrument was wrong, not the model. Matching
+    # is case-insensitive for the same reason.
     expect_any: tuple[str, ...] | None = None
 
 
@@ -53,16 +59,23 @@ TRANSCRIPT: tuple[Turn, ...] = (
     Turn("What is (18500 / 37) + 962? Use the calculator."),
     Turn("Briefly, what is the difference between a list and a tuple in Python?"),
     # --- recall checks ---------------------------------------------------
-    Turn("What is my name?", expect_any=("Hanzlah",)),
+    Turn("What is my name?", expect_any=("hanzlah",)),
     Turn("What is my employee ID and which team am I on?", expect_any=("4471",)),
     Turn(
         "Which database did I say was my favourite, and which language do I prefer?",
-        expect_any=("Postgres", "postgres"),
+        # "postgres" is a prefix of "postgresql", so this covers both spellings.
+        expect_any=("postgres",),
     ),
 )
 
 
-def run_benchmark(config_label: str, description: str, quiet: bool) -> dict:
+def run_benchmark(
+    config_label: str,
+    description: str,
+    quiet: bool,
+    flags: OptimizationFlags | None = None,
+) -> dict:
+    flags = flags or OptimizationFlags()
     cfg = Config()
     client = groq.Groq(api_key=cfg.groq_api_key)
 
@@ -96,6 +109,7 @@ def run_benchmark(config_label: str, description: str, quiet: bool) -> dict:
                 cfg=cfg,
                 turn_index=index,
                 on_text=(lambda _c: None) if quiet else None,
+                flags=flags,
             )
         except ChatError as exc:
             conversation.rollback(marker)
@@ -109,7 +123,8 @@ def run_benchmark(config_label: str, description: str, quiet: bool) -> dict:
         recall_ok: bool | None = None
         if turn.expect_any is not None:
             recall_total += 1
-            recall_ok = any(token in result.text for token in turn.expect_any)
+            reply = result.text.lower()
+            recall_ok = any(token in reply for token in turn.expect_any)
             recall_passed += int(recall_ok)
 
         per_turn.append(
@@ -149,12 +164,25 @@ def main() -> int:
     _force_utf8_stdout()
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="baseline", help="config label for the log")
+    parser.add_argument("--config", default="", help="config label for the log")
     parser.add_argument("--label", default="", help="human description of this run")
     parser.add_argument("--quiet", action="store_true", help="suppress streamed output")
+    # Each optimisation is opted into separately so savings stay attributable.
+    parser.add_argument("--truncate", action="store_true", help="Opt A: cap tool results")
+    parser.add_argument("--summarize", action="store_true", help="Opt B: compress history")
+    parser.add_argument("--route", action="store_true", help="Opt C: cheap model routing")
     args = parser.parse_args()
 
-    summary = run_benchmark(args.config, args.label or args.config, args.quiet)
+    flags = OptimizationFlags(
+        truncate_tool_results=args.truncate,
+        summarize_history=args.summarize,
+        route_models=args.route,
+    )
+    config_label = args.config or flags.label
+
+    summary = run_benchmark(
+        config_label, args.label or config_label, args.quiet, flags
+    )
 
     print("\n" + "=" * 62)
     print(f"CONFIG: {summary['config']}  ({summary['description']})")

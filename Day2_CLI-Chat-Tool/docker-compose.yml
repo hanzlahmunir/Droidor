@@ -1,0 +1,66 @@
+# `docker compose up` starts an interactive chat session.
+#
+# Unlike Day 1 (a server that listens and needs no terminal), this is an
+# interactive CLI, so two settings are load-bearing:
+#
+#   stdin_open: true  ->  keeps stdin attached so input() can read your typing
+#   tty: true         ->  allocates a pseudo-terminal so the prompt renders
+#
+# Without BOTH, `docker compose up` starts the chat, prints the banner, then
+# immediately hits EOF on stdin and exits -- a chat you cannot type into.
+
+services:
+  chat:
+    build: .
+    # Fixed name so `docker attach` and `docker compose exec` are predictable.
+    container_name: day2-chat
+
+    # Secrets come from .env (gitignored). Compose reads that file
+    # automatically; only these two are passed into the container.
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required - copy .env.example to .env and fill it in}
+      # Optional: web_search falls back to DuckDuckGo when this is empty.
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      CHAT_MODEL: ${CHAT_MODEL:-openai/gpt-oss-120b}
+      CHEAP_MODEL: ${CHEAP_MODEL:-openai/gpt-oss-20b}
+      COST_LOG_PATH: ${COST_LOG_PATH:-logs/cost_log.jsonl}
+
+    # Required for an interactive REPL. See the note above.
+    stdin_open: true
+    tty: true
+
+    # Cost logs and transcripts are written inside the container; this bind
+    # mount puts them on the host so they survive `docker compose down` and
+    # can be inspected without entering the container.
+    volumes:
+      - ./logs:/app/logs
+
+    # A crashed chat should not silently restart into a fresh session and lose
+    # the conversation. Exiting with /exit is a normal, intended end state.
+    restart: "no"
+
+  # Offline test suite. Not started by `docker compose up` -- it sits behind a
+  # profile so the default command stays "start the chat".
+  #   docker compose run --rm tests
+  tests:
+    build: .
+    profiles: ["tools"]
+    environment:
+      # The suite is entirely offline, but Config requires the variable to be
+      # present, so a placeholder is enough.
+      GROQ_API_KEY: "not-needed-for-offline-tests"
+    command: ["python", "-m", "pytest", "-v"]
+
+  # Cost benchmark. Needs a real key: it replays 10 turns against the API.
+  #   docker compose run --rm benchmark
+  benchmark:
+    build: .
+    profiles: ["tools"]
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY:?GROQ_API_KEY is required}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      CHAT_MODEL: ${CHAT_MODEL:-openai/gpt-oss-120b}
+      CHEAP_MODEL: ${CHEAP_MODEL:-openai/gpt-oss-20b}
+    volumes:
+      - ./logs:/app/logs
+    command: ["python", "benchmark.py", "--quiet"]

@@ -30,6 +30,12 @@ import groq
 
 from app.conversation import Conversation
 from app.costlog import CostLogger
+from app.optimize import (
+    OptimizationFlags,
+    should_use_cheap_model,
+    summarize_if_needed,
+    truncate_tool_result,
+)
 from app.pricing import compute_cost
 from app.tools import TOOL_SCHEMAS, run_tool
 
@@ -195,14 +201,35 @@ def run_turn(
     turn_index: int,
     model: str | None = None,
     on_text: Callable[[str], None] | None = None,
+    flags: OptimizationFlags | None = None,
 ) -> TurnResult:
     """Run one user turn to completion, including any tool calls.
 
     Assumes the user message has already been appended to `conversation`.
     Raises ChatError on unrecoverable API failure; the caller rolls back.
     """
-    model = model or cfg.chat_model
+    flags = flags or OptimizationFlags()
     emit = on_text or _default_emit
+
+    # --- Optimisation B: compress history BEFORE building this request, so
+    # the saving applies to this turn and not only to later ones.
+    summarize_if_needed(
+        client, conversation, cfg, flags.summarize_history, cost_logger, turn_index
+    )
+
+    # --- Optimisation C: route easy turns to the cheaper model. Decided from
+    # the last user message, using free string heuristics.
+    if model is None:
+        last_user = next(
+            (
+                m.get("content") or ""
+                for m in reversed(conversation.messages)
+                if m.get("role") == "user"
+            ),
+            "",
+        )
+        use_cheap = should_use_cheap_model(last_user, flags.route_models)
+        model = cfg.cheap_model if use_cheap else cfg.chat_model
 
     api_calls = 0
     total_in = 0
@@ -324,13 +351,31 @@ def run_turn(
             preview = result.replace("\n", " ")[:60]
             emit(f" {preview}{'...' if len(result) > 60 else ''}\n")
 
+            # --- Optimisation A: cap what a tool result contributes to history.
+            #
+            # The next loop iteration rebuilds the request from `conversation`,
+            # so the model sees this truncated text on THIS turn too -- not
+            # just on later ones. That is a real quality tradeoff, not a free
+            # win, and it is why the benchmark scores recall alongside cost.
+            #
+            # The saving is large because a tool result is not paid for once:
+            # it is resent on every subsequent turn for the rest of the
+            # session. In the baseline run one web_search result pushed turn 4
+            # to 4,722 input tokens and kept turns 5-6 above 2,400.
+            #
+            # _TOOL_RESULT_MAX_CHARS is set to keep the head of the result,
+            # where search engines and articles put the most relevant material.
+            stored = truncate_tool_result(
+                result, flags.truncate_tool_results, call["name"]
+            )
+
             # Exactly one tool message per tool_call id.
             conversation.append(
                 {
                     "role": "tool",
                     "tool_call_id": call["id"],
                     "name": call["name"],
-                    "content": result,
+                    "content": stored,
                 }
             )
     else:
