@@ -69,18 +69,29 @@ you > What is (18500 / 37) + 962?
 ```
 
 The calculator **never uses `eval()`** — it parses the expression into an AST
-and walks it with a strict allowlist of arithmetic operations. To see the guard
-working, ask it to compute something malicious:
+and walks it with a strict allowlist of arithmetic operations.
+
+To see that guard actually fire, use `/tool`, which calls a tool directly with
+no model in the loop:
 
 ```
-you > Calculate __import__("os").system("echo pwned")
-you > What is 2 ** 999999999?
+you > /tool calculator {"expression": "__import__('os').system('echo pwned')"}
+  [tool] calculator -> Error: Unsupported expression element: Call
+
+you > /tool calculator {"expression": "2**999999999"}
+  [tool] calculator -> Error: Exponent too large (max 1000); refusing to evaluate.
 ```
 
-Both come back as a handled error and the chat continues. The first is blocked
-because `Call` is not an allowlisted node type; the second because a huge
-exponent would hang the process while allocating (a denial of service, not a
-crash you could catch).
+> **Why `/tool` exists.** Asking the *chat* to compute something malicious
+> usually makes the model refuse on its own — so the tool is never called and
+> the guard is never exercised. That is the right outcome for the wrong
+> reason: a model refusal is a soft layer that can be prompted around, and it
+> proves nothing about the hard guard underneath. `/tool` bypasses the model
+> so the allowlist is what answers. It costs nothing — no API call is made.
+
+The second example is blocked because a huge exponent is not an error at all:
+Python would try to allocate the number and hang the process, with no
+exception to catch. That is a denial of service reachable from one message.
 
 ### Web search and fetch
 
@@ -92,17 +103,22 @@ you > Find the latest Python release and tell me what changed
 The model typically chains the two tools: `web_search` to find candidates,
 then `fetch_url` to read the most promising one in full.
 
-`fetch_url` is guarded against SSRF, since the model chooses the URL. Try:
+`fetch_url` is guarded against SSRF, since the model chooses the URL. Same
+caveat as above — the model will usually refuse before the tool is reached, so
+use `/tool` to exercise the guard itself:
 
 ```
-you > Fetch http://169.254.169.254/latest/meta-data/
-you > Fetch http://localhost:8080/
+you > /tool fetch_url {"url": "http://169.254.169.254/latest/meta-data/"}
+  [tool] fetch_url -> Error: Blocked: '169.254.169.254' resolves to non-public address 169.254.169.254.
+
+you > /tool fetch_url {"url": "file:///etc/passwd"}
+  [tool] fetch_url -> Error: Blocked scheme 'file'; only http and https are allowed.
 ```
 
-Both are refused. That first address is the cloud instance-metadata endpoint,
-which serves IAM credentials to anything that can reach it — the guard resolves
-the hostname to an IP first, because a perfectly public-looking domain can
-resolve to a private address.
+That first address is the cloud instance-metadata endpoint, which serves IAM
+credentials to anything that can reach it. The guard resolves the hostname to
+an IP *first*, because a perfectly public-looking domain can have a DNS record
+pointing at a private address — checking the hostname string is not enough.
 
 ### Memory across turns
 
@@ -139,6 +155,13 @@ docker compose run --rm tests        # offline test suite (66 tests, no API key 
 docker compose run --rm benchmark    # replay the fixed 10-turn cost benchmark
 docker compose down                  # stop and clean up
 ```
+
+> **After editing any source file, rebuild:** `docker compose build chat`.
+> Compose reuses the existing image, so an edit that isn't rebuilt runs the
+> *old* code with no warning. This actually happened: a session ran against a
+> pre-optimisation image, reported baseline cost, and sent every call to the
+> expensive model. The banner now prints the active config (`opts: ...`) as a
+> check — if it doesn't match what you expect, the image is stale.
 
 Logs are written to `./logs/` on the host, so they survive `docker compose down`.
 

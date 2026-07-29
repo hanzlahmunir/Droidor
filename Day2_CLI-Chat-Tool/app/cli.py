@@ -15,6 +15,7 @@ Two things this layer must do beyond printing a message:
      and return to the prompt, not tear down the session and lose the log.
 """
 
+import json
 import sys
 
 import groq
@@ -24,6 +25,7 @@ from app.config import Config
 from app.conversation import Conversation
 from app.costlog import CostLogger
 from app.optimize import OptimizationFlags
+from app.tools import run_tool
 
 SYSTEM_PROMPT = (
     "You are a concise, helpful CLI assistant. "
@@ -40,7 +42,24 @@ _BANNER = """\
 Day 2 - CLI Chat Tool
 Tools: calculator, web_search, fetch_url
 Commands: /cost  session cost so far
+          /tool  call a tool directly, bypassing the model
           /exit  quit and write the session summary
+"""
+
+_TOOL_HELP = """\
+  /tool <name> <json-args>   call a tool directly
+
+  Why this exists: asking the model to run a malicious input usually makes it
+  refuse on its own, so the tool is never called and the real guard is never
+  exercised. That is the right outcome for the wrong reason -- the model's
+  refusal is a soft layer, and it can be talked around. This calls the tool
+  directly so the hard guard is what answers.
+
+  examples:
+    /tool calculator {"expression": "2+2"}
+    /tool calculator {"expression": "__import__('os').system('echo pwned')"}
+    /tool fetch_url {"url": "http://169.254.169.254/latest/meta-data/"}
+    /tool web_search {"query": "model context protocol"}
 """
 
 
@@ -54,6 +73,38 @@ def _print_cost(logger: CostLogger) -> None:
     if t.per_model_calls:
         breakdown = "  ".join(f"{m}={n}" for m, n in t.per_model_calls.items())
         print(f"  models: {breakdown}")
+
+
+def _run_tool_directly(command: str, cfg: Config) -> None:
+    """Handle `/tool <name> <json-args>` -- invoke a tool with no model involved.
+
+    This makes the security guards demonstrable. Asking the chat to compute
+    `__import__("os").system(...)` normally makes the MODEL refuse, so the
+    calculator is never called and its AST allowlist is never exercised. The
+    outcome looks right but proves nothing about the guard that actually
+    matters, because a model refusal can be prompted around.
+
+    Costs nothing: no API call is made.
+    """
+    parts = command.split(maxsplit=2)
+
+    if len(parts) < 3:
+        print(_TOOL_HELP)
+        return
+
+    _, name, raw_args = parts
+
+    try:
+        args = json.loads(raw_args)
+        if not isinstance(args, dict):
+            raise ValueError("arguments must be a JSON object")
+    except (json.JSONDecodeError, ValueError) as exc:
+        print(f"  could not parse arguments: {exc}")
+        print('  expected e.g. /tool calculator {"expression": "2+2"}')
+        return
+
+    # run_tool never raises -- that is the layer-1 guarantee under test here.
+    print(f"  [tool] {name} -> {run_tool(name, args, cfg)}")
 
 
 def _force_utf8_stdout() -> None:
@@ -108,12 +159,27 @@ def main() -> int:
     cost_logger = CostLogger(cfg.cost_log_path, config_label=flags.label)
 
     print(_BANNER)
-    print(f"model: {cfg.chat_model}")
+    print(f"model:  {cfg.chat_model}")
     print(
         "search: Tavily + DuckDuckGo fallback"
         if cfg.tavily_api_key
         else "search: DuckDuckGo only (no TAVILY_API_KEY set)"
     )
+    # Printed so a stale Docker image cannot silently run the wrong config.
+    # A session was once run against an image built before optimisations were
+    # enabled; it reported baseline cost and every call went to the expensive
+    # model, with nothing on screen to indicate why. Now the active config is
+    # visible in the first three lines.
+    active = [
+        name
+        for name, on in (
+            ("tool-result caps", flags.truncate_tool_results),
+            ("cheap-model routing", flags.route_models),
+            ("history summary", flags.summarize_history),
+        )
+        if on
+    ]
+    print(f"opts:   {', '.join(active) if active else 'none (baseline)'}")
     print()
 
     turn_index = 0
@@ -134,6 +200,10 @@ def main() -> int:
 
         if user_input == "/cost":
             _print_cost(cost_logger)
+            continue
+
+        if user_input.startswith("/tool"):
+            _run_tool_directly(user_input, cfg)
             continue
 
         # Snapshot BEFORE any mutation, so a failure anywhere in the turn --
