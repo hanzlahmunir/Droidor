@@ -15,6 +15,7 @@ Two things this layer must do beyond printing a message:
      and return to the prompt, not tear down the session and lose the log.
 """
 
+import argparse
 import json
 import sys
 
@@ -129,8 +130,68 @@ def _force_utf8_stdout() -> None:
                 pass
 
 
+def _parse_args() -> argparse.Namespace:
+    """Command-line options.
+
+    `--mode` exists so a reviewer can run the before/after cost comparison
+    without editing source and rebuilding the image. Adopted from the
+    co-intern's tool during peer review -- ours previously hardcoded the
+    optimisations in this file, which made the comparison this project is
+    *about* the hardest thing in it to reproduce.
+
+    The individual --no-* flags allow attributing a single optimisation, which
+    is how the per-change numbers in docs/COST.md were measured.
+    """
+    parser = argparse.ArgumentParser(
+        description="Day 2 CLI chat tool (Groq API, hand-written loop)."
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["simple", "optimized"],
+        default="optimized",
+        help=(
+            "simple: full history, one model, untruncated tool results "
+            "(the measured baseline). optimized (default): per-tool result "
+            "caps + cheap-model routing."
+        ),
+    )
+    parser.add_argument(
+        "--no-truncate",
+        action="store_true",
+        help="optimized mode only: disable per-tool result caps",
+    )
+    parser.add_argument(
+        "--no-routing",
+        action="store_true",
+        help="optimized mode only: keep every turn on the capable model",
+    )
+    parser.add_argument(
+        "--summarize",
+        action="store_true",
+        help=(
+            "enable history summarisation. OFF by default: measured as a net "
+            "loss below ~20 turns (see docs/COST.md)."
+        ),
+    )
+    return parser.parse_args()
+
+
+def _flags_from_args(args: argparse.Namespace) -> OptimizationFlags:
+    """Turn parsed arguments into the flag set used for the session."""
+    if args.mode == "simple":
+        # The baseline the cost work is measured against: nothing enabled.
+        return OptimizationFlags()
+
+    return OptimizationFlags(
+        truncate_tool_results=not args.no_truncate,
+        route_models=not args.no_routing,
+        summarize_history=args.summarize,
+    )
+
+
 def main() -> int:
     _force_utf8_stdout()
+    args = _parse_args()
 
     try:
         cfg = Config()
@@ -143,19 +204,17 @@ def main() -> int:
     client = groq.Groq(api_key=cfg.groq_api_key)
     conversation = Conversation(SYSTEM_PROMPT, transcript_path="logs/transcript.jsonl")
 
-    # The optimisations that measured as genuine wins with recall intact:
-    # per-tool result caps (-16%) and cheap-model routing (-22% combined),
-    # both verified at matched API call counts. See docs/COST.md.
+    # Defaults (optimized mode) are the optimisations that measured as genuine
+    # wins with recall intact: per-tool result caps (-16%) and cheap-model
+    # routing (-22% combined), both verified at matched API call counts.
     #
-    # Summarisation is deliberately OFF: measured as a net loss on sessions of
-    # this length (fixed ~$0.000229 overhead per summarisation against
-    # ~$0.000023/turn saving, so it needs ~10 further turns to break even).
-    # It is kept in the codebase because the economics invert on long sessions.
-    flags = OptimizationFlags(
-        truncate_tool_results=True,
-        route_models=True,
-        summarize_history=False,
-    )
+    # Summarisation stays off unless --summarize: measured as a net loss on
+    # sessions of this length (fixed ~$0.000229 overhead per summarisation
+    # against ~$0.000023/turn saving, so it needs ~10 further turns to break
+    # even). Kept because the economics invert on long sessions.
+    #
+    # See docs/COST.md for all of the above.
+    flags = _flags_from_args(args)
     cost_logger = CostLogger(cfg.cost_log_path, config_label=flags.label)
 
     print(_BANNER)
@@ -179,6 +238,7 @@ def main() -> int:
         )
         if on
     ]
+    print(f"mode:   {args.mode}")
     print(f"opts:   {', '.join(active) if active else 'none (baseline)'}")
     print()
 

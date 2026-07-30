@@ -15,6 +15,33 @@ docker compose up                # builds, then verifies key + API reachability
 docker compose run --rm chat     # starts the chat
 ```
 
+### Reproducing the cost comparison
+
+The before/after numbers are a flag, not a code edit:
+
+```bash
+docker compose run --rm chat --mode simple   # "before" - no optimisations
+docker compose run --rm chat                 # "after"  - the default
+```
+
+Run the same conversation in each and compare `/cost`. To attribute a single
+change (this is how the per-lever numbers in [docs/COST.md](docs/COST.md) were
+measured):
+
+```bash
+docker compose run --rm chat --no-routing    # tool-result caps only
+docker compose run --rm chat --no-truncate   # cheap-model routing only
+docker compose run --rm chat --summarize     # + history summarisation (off by default)
+```
+
+The active configuration is printed in the banner, so a stale image is
+obvious:
+
+```
+mode:   optimized
+opts:   tool-result caps, cheap-model routing
+```
+
 `docker compose up` runs a preflight check: it builds the image, confirms your
 API key works with a live call, and prints the command to start chatting.
 

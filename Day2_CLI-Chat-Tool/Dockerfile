@@ -36,5 +36,12 @@ RUN useradd --create-home --uid 1000 chatuser \
     && chown -R chatuser:chatuser /app
 USER chatuser
 
-# The chat REPL. Overridden by the `test` profile to run pytest instead.
-CMD ["python", "-m", "app.cli"]
+# ENTRYPOINT (not CMD) so arguments passed to `docker compose run --rm chat`
+# are appended to the command rather than replacing it. That is what makes
+#     docker compose run --rm chat --mode simple
+# work. With CMD, "--mode simple" would replace the whole command and the
+# container would try to execute a binary called "--mode".
+#
+# The tests/benchmark services override this with `entrypoint:` in
+# docker-compose.yml.
+ENTRYPOINT ["python", "-m", "app.cli"]

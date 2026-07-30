@@ -68,7 +68,8 @@ services:
       CHAT_MODEL: ${CHAT_MODEL:-openai/gpt-oss-120b}
     volumes:
       - ./logs:/app/logs
-    command: ["python", "-m", "app.preflight"]
+    # entrypoint override: this service runs preflight, not the chat.
+    entrypoint: ["python", "-m", "app.preflight"]
 
   # Offline test suite. Behind a profile so it is not started by `up`.
   #   docker compose run --rm tests
@@ -79,7 +80,8 @@ services:
       # The suite is entirely offline, but Config requires the variable to be
       # present, so a placeholder is enough.
       GROQ_API_KEY: "not-needed-for-offline-tests"
-    command: ["python", "-m", "pytest", "-v"]
+    # entrypoint override: runs the test suite, not the chat.
+    entrypoint: ["python", "-m", "pytest", "-v"]
 
   # Cost benchmark. Needs a real key: it replays 10 turns against the API.
   #   docker compose run --rm benchmark
@@ -93,4 +95,5 @@ services:
       CHEAP_MODEL: ${CHEAP_MODEL:-openai/gpt-oss-20b}
     volumes:
       - ./logs:/app/logs
-    command: ["python", "benchmark.py", "--quiet"]
+    # entrypoint override: runs the benchmark, not the chat.
+    entrypoint: ["python", "benchmark.py", "--quiet"]
