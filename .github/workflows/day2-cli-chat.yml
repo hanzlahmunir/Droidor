@@ -50,3 +50,16 @@ jobs:
             exit 1
           fi
           echo "No secrets found."
+
+  docker-build:
+    # Adopted from m-hamzaj/Cli-chat's CI during peer review. Without this a
+    # broken Dockerfile reaches main, and `docker compose up` is the documented
+    # entry point -- so it would break for every user while tests stayed green.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Day2_CLI-Chat-Tool
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the image
+        run: docker build -t day2-cli-chat .
