@@ -35,3 +35,12 @@ class Document(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    # When the AUTHOR published the article, as opposed to created_at above,
+    # which is when WE stored it. Nullable on purpose: a crawler frequently
+    # cannot find a publish date, and NULL records that honestly instead of
+    # inventing one. Added in migration 0002 -- see that file for the full
+    # rationale, including why NOT NULL would have been wrong here.
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
