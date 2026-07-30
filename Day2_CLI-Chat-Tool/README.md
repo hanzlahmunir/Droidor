@@ -236,8 +236,14 @@ workload with these levers: routing has a hard 30% ceiling (the cheap model is
 exactly 2× cheaper and 41% of tokens are on tool turns that must stay on the
 capable model), the cheapest available model fails recall 2/6 and is
 unusable, and summarisation needs ~10 further turns per invocation to break
-even. Prompt caching would be the missing lever, but Groq does not offer it on
-these models.
+even.
+
+Prompt caching *is* available on these models (automatic, 50% off cached
+input) — an earlier version of this README said otherwise and was wrong. It is
+still not claimed as a lever, because the `cached_tokens` usage field is not
+exposed on this account and its cost effect could not be measured. See
+[docs/CACHING.md](docs/CACHING.md), including the control run that overturned
+a false positive.
 
 Full per-change attribution, the two bugs found while measuring, and what
 would be needed to reach 50%: [docs/COST.md](docs/COST.md).

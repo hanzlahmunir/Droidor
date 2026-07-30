@@ -186,10 +186,23 @@ combined, not 50%.
   O(n²) input growth is what they attack, and 10 turns barely enters the
   quadratic region. Summarisation alone turns positive somewhere past ~20
   turns.
-- **Prompt caching.** The single biggest lever on providers that offer it
-  (~90% off cached input). Groq offers it on `kimi-k2` but not on the
-  gpt-oss models used here. On Anthropic or OpenAI this would likely reach
-  50% by itself.
+- **Prompt caching — correction.** An earlier version of this document said
+  Groq offered caching only on `kimi-k2`. **That was wrong.** It is available
+  on `gpt-oss-120b` and `gpt-oss-20b` — the models used here — automatically,
+  with no code change, at 50% off cached input.
+
+  It is still **not claimed as a lever**, because we could not measure its
+  effect: the `usage.prompt_tokens_details.cached_tokens` field the docs
+  describe is not exposed on this account, so the cost impact cannot be
+  quantified. Latency probing found a clear bimodal cache signal at ~2,700
+  tokens (11ms hit vs 146ms miss, 40% hit rate) but no usable signal at the
+  sizes most of our turns actually run at. Full investigation, including the
+  control run that overturned a false positive: [CACHING.md](CACHING.md).
+
+  Switching to `kimi-k2` to get *explicit* cached pricing was considered and
+  rejected on arithmetic: at $1.00/$3.00 per Mtok against gpt-oss-120b's
+  $0.15/$0.60, it costs **3.6× more even with a 100% cache hit rate**. A 50%
+  discount cannot close a 6.7× base-rate gap.
 - **A capable-but-cheap small model.** The 30% routing ceiling is set by the
   2× price gap. A model at 5× cheaper that still passes recall would move it
   to ~47%.
