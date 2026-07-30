@@ -1,0 +1,15 @@
+# Cached raw HTML from crawled sites.
+#
+# NOT committed, for two reasons:
+#   1. It is other people's content. Caching it locally to avoid re-fetching
+#      is polite; republishing it in a public repo is a different act.
+#   2. It is regenerable -- `crawler seed` rebuilds it -- and it is bulky
+#      (~20 files, 15-45 KB each) with no review value.
+#
+# The cache still does its job locally: extraction can be re-tuned and the
+# whole corpus re-scored without re-crawling.
+data/raw/
+
+# The generated report IS committed: it is the deliverable, and the numbers
+# in the README point at it.
+!data/reports/

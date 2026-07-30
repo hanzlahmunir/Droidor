@@ -1,0 +1,63 @@
+# Pinned exactly (==, not >=) so a rebuild months from now installs the same
+# code that was tested. Day 2's peer review found the co-intern's unpinned
+# `groq>=0.11.0` silently upgraded to a version whose API had changed and
+# broke every turn -- that is the failure mode this prevents.
+
+# --- HTTP ---
+# httpx over requests: HTTP/2 support and a real timeout API. Some CDNs treat
+# HTTP/1.1-only clients as more bot-like, and a crawler must be able to bound
+# every request or one hung host stalls the whole run.
+httpx[http2]==0.28.1
+
+# --- Extraction ---
+# trafilatura is the primary extractor: it is the current state of the art for
+# boilerplate removal (nav/footer/share buttons) and is what extraction
+# benchmarks measure against. Hand-written BeautifulSoup rules would be
+# per-site and rot on the first redesign.
+trafilatura==2.0.0
+# readability-lxml is the SECOND, deliberately different extractor. We run it
+# on the same HTML and compare: where two independent algorithms disagree
+# sharply on length, that is evidence of a bad extraction. This is what turns
+# "% junk" into a measured number rather than a guess.
+readability-lxml==0.8.1
+# lxml is readability's parser and our own DOM querying (JSON-LD, meta tags).
+lxml==5.3.0
+# BeautifulSoup for the block classifier's targeted DOM checks (login forms,
+# paywall markers) where a forgiving parser beats a strict one.
+beautifulsoup4==4.12.3
+
+# --- Feeds & dates ---
+# feedparser handles the RSS/Atom zoo (RSS 0.9x/1.0/2.0, Atom) and their
+# date formats. Writing that by hand is a known tar pit.
+feedparser==6.0.11
+# dateutil parses the free-text dates that feeds and pages actually contain
+# ("March 14, 2019", "2019-03-14T09:30:00+05:00") rather than only ISO-8601.
+python-dateutil==2.9.0.post0
+
+# --- Database (the crawler's own state, NOT the documents table) ---
+# Same stack as Day 1 so there is one set of DB conventions in the repo.
+SQLAlchemy==2.0.36
+psycopg[binary]==3.2.3
+alembic==1.14.0
+
+# --- UI ---
+# Streamlit: a browsable UI with no frontend build step, so `docker compose up`
+# stays a single command.
+streamlit==1.41.1
+pandas==2.2.3
+
+# --- Topic discovery (optional feature) ---
+# Only used by the discover command. Absent keys degrade to raw search
+# results rather than failing -- the core crawl needs no key at all.
+groq==0.31.1
+tavily-python==0.5.0
+ddgs==9.0.0
+
+# --- Config ---
+python-dotenv==1.0.1
+
+# --- Tests ---
+pytest==8.3.4
+# respx mocks httpx at the transport layer, so fetcher/robots/rate-limit tests
+# run with zero network access and are deterministic in CI.
+respx==0.22.0

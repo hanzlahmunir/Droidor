@@ -1,0 +1,128 @@
+# ONE COMMAND:  docker compose up
+#
+# That brings up the whole system in dependency order:
+#   1. db      Postgres, holding BOTH the documents table and the crawler's
+#              own bookkeeping (separate databases, one server).
+#   2. api     the Day 1 Documents API, built from ../Day1_Documents-API.
+#   3. ui      the crawler's Streamlit interface, on http://localhost:8501
+#
+# WHY THE DAY 1 API IS BUILT FROM SOURCE RATHER THAN COPIED IN.
+# `build: ../Day1_Documents-API` means Day 3 runs the REAL Day 1 code, at
+# whatever revision it currently is. Copying it would fork it, and the fork
+# would drift silently. This way, breaking Day 1 breaks Day 3's build
+# immediately and visibly -- which is the correct coupling for something whose
+# whole job is to feed Day 1.
+#
+# The crawl itself is NOT started by `up`. Crawling makes live requests to
+# other people's servers, and that should be an explicit act:
+#
+#   docker compose run --rm crawler seed        # the 5 default feeds
+#   docker compose run --rm crawler crawl <url>
+#   docker compose run --rm crawler report
+#   docker compose run --rm tests               # offline test suite
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-docuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docpass}
+      POSTGRES_DB: ${POSTGRES_DB:-documents}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Creates the SECOND database (crawler bookkeeping) on first boot.
+      # Postgres runs anything in this directory once, when the data volume is
+      # empty -- so it cannot clobber an existing database on later starts.
+      - ./scripts/init-crawler-db.sh:/docker-entrypoint-initdb.d/init-crawler-db.sh:ro
+    healthcheck:
+      # Everything downstream waits on this. pg_isready returns 0 only once
+      # Postgres actually accepts connections, which is later than "the
+      # container started".
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-docuser} -d ${POSTGRES_DB:-documents}"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  api:
+    # The real Day 1 code, not a copy. See the note at the top.
+    build: ../Day1_Documents-API
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-docuser}:${POSTGRES_PASSWORD:-docpass}@db:5432/${POSTGRES_DB:-documents}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Exposed so the stored documents can be inspected with curl as well as
+      # through the UI.
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ui:
+    build: .
+    environment:
+      API_BASE_URL: http://api:8000
+      # The crawler's own database, separate from the documents one.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-docuser}:${POSTGRES_PASSWORD:-docpass}@db:5432/crawler
+      # Both optional: absent keys degrade topic discovery to unranked
+      # search. The crawl pipeline itself needs neither.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      USER_AGENT: ${USER_AGENT:-}
+      PER_HOST_DELAY_SECONDS: ${PER_HOST_DELAY_SECONDS:-2.0}
+      MAX_REQ_PER_HOST_HOUR: ${MAX_REQ_PER_HOST_HOUR:-60}
+      MAX_REQ_GLOBAL_HOUR: ${MAX_REQ_GLOBAL_HOUR:-300}
+    depends_on:
+      api:
+        # Not just "started": the UI's first action is to call /health, and
+        # Day 1 runs its migrations before it serves.
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    volumes:
+      # Cached raw HTML and generated reports live on the host, so they
+      # survive `docker compose down` and can be read without entering the
+      # container. The raw HTML cache is what makes re-scoring possible
+      # without re-crawling.
+      - ./data:/app/data
+
+  # The crawler CLI. `run --rm`, not a long-running service: crawling makes
+  # live requests to other people's servers and should be started deliberately.
+  crawler:
+    build: .
+    profiles: ["cli"]
+    environment:
+      API_BASE_URL: http://api:8000
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-docuser}:${POSTGRES_PASSWORD:-docpass}@db:5432/crawler
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      USER_AGENT: ${USER_AGENT:-}
+      PER_HOST_DELAY_SECONDS: ${PER_HOST_DELAY_SECONDS:-2.0}
+      MAX_REQ_PER_HOST_HOUR: ${MAX_REQ_PER_HOST_HOUR:-60}
+      MAX_REQ_GLOBAL_HOUR: ${MAX_REQ_GLOBAL_HOUR:-300}
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    # Overrides the UI entrypoint. ENTRYPOINT (not CMD) means arguments append
+    # rather than replace, so `run --rm crawler seed --per-feed 4` works --
+    # the fix Day 2 needed after `--mode simple` was parsed as a binary name.
+    entrypoint: ["python", "-m", "app.cli"]
+
+  # Offline test suite: no network, no API key, no database.
+  #   docker compose run --rm tests
+  tests:
+    build: .
+    profiles: ["cli"]
+    environment:
+      # Config requires DATABASE_URL to be present, but the offline suite
+      # never opens a connection, so a placeholder is enough.
+      DATABASE_URL: postgresql+psycopg://unused:unused@localhost:5432/unused
+    entrypoint: ["python", "-m", "pytest", "-v"]
+
+volumes:
+  pgdata:

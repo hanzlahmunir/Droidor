@@ -1,0 +1,84 @@
+name: Day3 Crawler
+
+on:
+  push:
+    paths:
+      - "Day3_Crawler/**"
+      # Day 3's compose builds the Day 1 API from source, so a change there
+      # can break this build. Watch it.
+      - "Day1_Documents-API/**"
+      - ".github/workflows/day3-crawler.yml"
+  pull_request:
+    paths:
+      - "Day3_Crawler/**"
+      - "Day1_Documents-API/**"
+      - ".github/workflows/day3-crawler.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Day3_Crawler
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # 3.12, matching the container. The host runs 3.14, which is too new
+          # for some lxml/psycopg wheels.
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        # The whole suite is offline: no network, no database, no API key.
+        # That is deliberate. A crawler test that fetched a real blog would
+        # go red whenever that blog had a bad afternoon, which teaches
+        # nothing and trains people to ignore red builds.
+        #
+        # DATABASE_URL only has to be PRESENT (Config reads it with no
+        # default); nothing here opens a connection.
+        env:
+          DATABASE_URL: postgresql+psycopg://unused:unused@localhost:5432/unused
+        run: python -m pytest -v
+
+      - name: Check no secrets are committed
+        # Same guard as Day 1 and Day 2. This repo has already leaked a key
+        # once, from a real value pasted into a committed file.
+        run: |
+          if grep -rEq "gsk_[A-Za-z0-9]{30,}|tvly-dev-[A-Za-z0-9]{10,}" \
+              --include="*.py" --include="*.example" --include="*.md" .; then
+            echo "::error::A real API key appears to be committed."
+            exit 1
+          fi
+          echo "No secrets found."
+
+  docker-build:
+    # `docker compose up` is the documented entry point, so a broken
+    # Dockerfile must fail CI even when the tests pass. Adopted from
+    # m-hamzaj/Cli-chat during Day 2's peer review.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the crawler image
+        working-directory: Day3_Crawler
+        run: docker build -t day3-crawler .
+
+      - name: Build the Day 1 API image
+        # Day 3's compose builds this from source rather than copying it, so
+        # the coupling is real and worth verifying here.
+        working-directory: Day1_Documents-API
+        run: docker build -t day1-documents-api .
+
+      - name: Validate the compose file
+        working-directory: Day3_Crawler
+        # `config` parses and resolves the whole file, catching a bad service
+        # reference or an unresolvable interpolation without starting anything.
+        run: docker compose config --quiet && echo "compose file is valid"

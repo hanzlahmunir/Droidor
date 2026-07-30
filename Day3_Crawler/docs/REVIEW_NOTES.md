@@ -1,0 +1,273 @@
+# Review notes — why each decision, and what breaks if you change it
+
+Every answer here cites something measured or something that actually broke
+during the build, not a preference.
+
+---
+
+## Bugs found by running it, not by reading it
+
+These four are the most useful part of this document: each was invisible in
+code review and only appeared when the crawler was pointed at real websites.
+
+### 1. The bot-wall detector discarded every article on a Cloudflare site
+
+**Symptom.** All five Mozilla Hacks articles were rejected as `bot_wall`.
+
+**Cause.** `"cdn-cgi/challenge-platform"` was in the marker list. Fetching one
+of those pages directly returned **HTTP 200 with a normal 43 KB article**, and
+the marker appeared at offset 43059 — inside Cloudflare's passive telemetry
+beacon (`window.__CF$cv$params`), which Cloudflare injects into *every* page
+it serves. The match detected "this site uses Cloudflare", not "Cloudflare is
+blocking you". `"ray id:"` had the same defect — it appears in ordinary
+Cloudflare footers.
+
+**Fix.** Removed both markers, and added a structural veto:
+`_looks_like_a_real_article()`. A marker now only counts if the page *also*
+behaves like a wall — a non-success status, or under 1,200 characters of
+extracted text. A 200 response carrying a full article did not block us,
+whatever strings its analytics scripts contain.
+
+**Lesson.** A substring match against a whole HTML document is evidence, not
+proof. Vendor strings appear on normal pages.
+
+**What breaks if you change it:** raise `_REAL_ARTICLE_CHARS` too high and
+verbose block pages get stored as articles; remove the veto and one
+over-broad marker silently deletes every article on a large slice of the web.
+
+### 2. The extractor-disagreement rule ran in the wrong direction
+
+**Symptom.** All five Google Research articles rejected as `junk`:
+"extractors disagree on length (7373 vs 1851 chars)".
+
+**Cause.** The rule fired on *any* large disagreement. Reading the stored text
+showed trafilatura's 7,373 characters were clean and complete — readability,
+the cruder algorithm, had given up early. The rule was blaming the wrong
+extractor.
+
+**Fix.** Disagreement now only counts when the **primary is the shorter one**
+(`chars < secondary_chars`), which is the only case that is evidence against
+the output we actually keep.
+
+**What breaks if you change it:** drop the direction check and you reject
+every long, well-extracted article on any site readability handles poorly.
+
+### 3. Re-crawling a known URL crashed the run
+
+**Symptom.** `IntegrityError: duplicate key value violates unique constraint
+"uq_crawl_records_canonical_url"`.
+
+**Cause.** The "every URL gets a record" invariant inserted a second row for a
+URL already in the table. Normalisation was working perfectly — the dirty URL
+`http://blog.cloudflare.com/bgp-origin-attribute/?utm_source=twitter&fbclid=xyz`
+collapsed onto the stored canonical and dedupe correctly identified record #19
+— and then it tried to INSERT.
+
+**Fix.** The URL-duplicate branch returns the **existing** record without
+inserting. Inserting was also wrong on the merits: a second row would
+double-count that article in every percentage, so the report's numbers would
+drift upward every time anyone re-ran a crawl.
+
+**What breaks if you change it:** the unique constraint fires again, and the
+report's denominator grows with usage.
+
+### 4. Three of five feeds were lost to transient DNS
+
+**Symptom.** `could not fetch feed: [Errno -5] No address associated with
+hostname` on three feeds; retrying by hand seconds later worked every time.
+
+**Cause and fix.** Measured rather than guessed: resolution succeeded 10/10
+once the container had settled, so the failures were **bursty and clustered
+at container start** — exactly when `seed` fires all five feed requests. A
+3-attempt retry with 1s/2s backoff was not enough (the second run lost three
+feeds again). Feeds now get 5 attempts with 2s/4s/8s/16s backoff.
+
+Feeds are more patient than articles on purpose: a failed feed loses every
+article behind it.
+
+---
+
+## Design decisions
+
+### Why POST to the Day 1 API instead of writing to its table
+
+Both write to the same Postgres. Writing directly would be fewer moving parts
+and would *bypass the 409-on-duplicate path, the 422 validation and the
+`published_at` contract* — the exact behaviour worth exercising. Two writers
+to one table also means two places enforcing invariants.
+
+*Breaks if changed:* Day 1's guarantees become untested, and the crawler can
+insert rows the API would have rejected.
+
+### Why `published_at` needed a new column instead of reusing `created_at`
+
+They answer different questions. `created_at` is when *we* stored the row;
+`published_at` is when the *author* published. Verified live: an article shows
+`published_at` 2019-03-14 and `created_at` 2026-07-30.
+
+`created_at` can never be missing or unparseable because we generate it — so
+if it were the answer, "% with a missing or unparseable date" would be 0% by
+construction and the whole metric would be meaningless.
+
+Nullable on purpose: `NULL` means "we looked and could not find one", which is
+a real state the report counts. `NOT NULL` would force the crawler to invent a
+value and destroy the signal.
+
+### Why raw HTML is cached to disk
+
+Two reasons, both load-bearing. **Politeness:** extraction was re-tuned four
+times while measuring; cached bytes mean each page was fetched once instead of
+once per iteration. **Reproducibility:** the report is computed from stored
+input, so re-running gives the same numbers. Regenerating from a fresh crawl
+would differ every time — pages change, some are down — making the figures
+unverifiable.
+
+### Why two extractors when only one's output is used
+
+The brief asks for "% of pages where extraction failed or returned junk" — a
+real number. With one extractor there is nothing to compare against, so junk
+could only be *asserted*. readability-lxml runs on the same HTML with a
+genuinely different algorithm; sharp disagreement is *evidence*. That is what
+makes the number measured.
+
+### Why three duplicate layers reported separately
+
+They catch different things and have different reliability. URL and content
+hashing are exact and need no threshold. Near-duplicate is a judgement call
+with a tunable number — so its matches are stored *with* the similarity score,
+and the report shows the highest score among articles we **kept**, so a
+reviewer can see whether the threshold was doing real work.
+
+Blending them into one "% duplicates" would hide which mechanism did the work.
+
+### Why Jaccard on shingles rather than MinHash
+
+MinHash exists to avoid all-pairs comparison at millions of documents. At
+~20-100 articles, exact Jaccard is instant and has no approximation error;
+MinHash would add a false-negative rate to save time we are not spending. The
+shingle sets computed here are exactly what MinHash would consume, so the
+upgrade is local to one file.
+
+### Why word shingles rather than a bag of words
+
+Two articles on one topic share most of their vocabulary while being entirely
+different pieces of writing. Requiring runs of five consecutive words means a
+high score reflects **copied phrasing**, not a shared subject. Tested:
+`"the cat sat on the mat while the dog watched"` vs the same words reordered
+scores below 0.3.
+
+### Why rate limits live in Postgres rather than memory
+
+An in-process counter resets on restart, so `docker compose restart` would
+silently reset an exhausted daily budget. Verified: `crawler status` in a
+fresh `run --rm` container reported 25/300 for the hour, counting requests
+made by an earlier container.
+
+Also **rolling windows, not calendar buckets**: with a calendar-hour counter
+and a 60/hour limit, you can fire 60 requests at 10:59 and 60 more at 11:00 —
+120 in two minutes without ever exceeding the limit.
+
+### Why robots.txt failures are fail-closed, but a 404 is fail-open
+
+A missing robots.txt means no restrictions — that is the standard's own
+default. A 5xx or a timeout means we *could not read the rules*, which is not
+the same as permission. Different causes, different answers.
+
+### Why the SSRF guard resolves DNS instead of blocklisting names
+
+A name blocklist is trivially bypassed: an attacker controls DNS for their own
+domain and can point `evil.example.com` at `127.0.0.1`. Only the resolved
+address tells the truth. Uses `ip.is_global`, which covers loopback,
+link-local (including the `169.254.169.254` cloud metadata endpoint), private
+ranges, multicast and reserved in one property rather than a hand-maintained
+CIDR list that will miss one.
+
+Day 2's peer review found this exact hole in the co-intern's `fetch_url`, and
+the first pass at that review wrongly called it safe because the metadata
+address "errored" — but only because nothing was listening on that laptop. On
+a cloud VM the same request returns IAM credentials. So the tests assert on
+literal IPs whose class is fixed, testing the **guard** rather than the
+environment.
+
+*Known limitation, stated rather than hidden:* this is a check-then-connect
+race. The name could resolve to a public IP here and a private one when httpx
+resolves it again. Closing it fully means pinning the connection to the
+validated IP, which httpx does not expose cleanly.
+
+### Why the URL normaliser keeps `?p=123` but strips `?utm_source=x`
+
+`utm_*` identifies the campaign that sent a visitor. `?p=123` on WordPress
+**is the article** — stripping it turns every URL on the site into the
+homepage, and then the duplicate layer merges them all into one document.
+This is the classic over-aggressive-normalisation bug and it has a test.
+
+Path case is preserved while host case is lowered: hostnames are
+case-insensitive per RFC 3986, paths are not. Lowercasing `/Blog/My-Post`
+404s on any case-sensitive server.
+
+### Why `create_all` here when Day 1 insists on migrations
+
+Day 1's `documents` table is a published contract with external readers. These
+two tables are internal, disposable bookkeeping — if the schema changes, the
+right action is to drop and re-crawl. An Alembic setup would be ceremony
+implying a stability guarantee this data does not have. The table the crawler
+*writes to* is still migration-managed, in Day 1, where the rule belongs.
+
+### Why `docker compose up` does not start a crawl
+
+Crawling makes live requests to other people's servers. That should be an
+explicit act, not a side effect of starting the app. `up` gives you a working
+UI; `run --rm crawler seed` crawls.
+
+### Why the date ladder records which rung won
+
+"83% had dates" is much less useful than a table showing where they came
+from. The measurement changed the code: re-running the ladder over the 20
+cached pages **with the RSS hint removed** showed 8 of 20 producing no date at
+all. Inspecting those showed most carried only
+`<meta property="og:updated_time" content="1785359721">` — a bare Unix epoch,
+which dateutil cannot parse and which was not in the key list. Adding both
+dropped no-date from 8/20 to **3/20**.
+
+The epoch path shares `_validate()` with the normal path, so it cannot skip
+the plausibility window.
+
+### Why implausible dates are rejected rather than stored
+
+A "successfully parsed" 1970 or 2099 date is worse than none: it looks valid,
+it sorts, and nothing downstream flags it. 1970 is usually a CMS with an empty
+field; a future date is usually a scheduled-post placeholder. Both are
+reported as unparseable, **with the raw string kept** as evidence.
+
+---
+
+## Likely review questions
+
+**"Your duplicate rate is 0%. Does dedupe work?"**
+Yes — 0% is the honest number for 25 URLs from 5 feeds that do not syndicate
+from each other. All three layers were verified against the real corpus:
+re-crawling a stored URL with tracking params was caught by the URL layer
+(record #19); the SHA-256 layer caught an exact re-check; and the same article
+with a new opening sentence scored **99.2%** on the near layer. Unrelated text
+correctly scored as non-duplicate.
+
+**"100% of dates came from RSS. Is the rest of the ladder dead code?"**
+It is untested *by that run*, which is why it was measured separately. With
+the RSS hint removed, the same 20 pages resolve via `json_ld` (5),
+`meta_article` (5), `time_element` (5) and `text_pattern` (2). Every rung
+fires on real pages.
+
+**"20% of your corpus is bot-walled. Isn't that a failure?"**
+It is a correctly-reported outcome. Mozilla Hacks returns 403 to the container
+while returning 200 for the identical URL and User-Agent from the host — an
+IP-reputation block, not a login wall. That distinction is why 403 without a
+login form is classified as `bot_wall` rather than `login_required`:
+reporting it as "requires a login" would be a false statement in the report
+and would send someone hunting for credentials that do not exist.
+
+**"Why is the mean length below the median?"**
+It is not here (8,031 vs 8,941) — the mean is *lower*, meaning short articles
+pull it down. Both are reported precisely so that skew is visible. Three of
+the five shortest are Simon Willison link-blog quote posts, which are
+genuinely short by design rather than extraction failures — visible in the
+report, which quotes them in full.

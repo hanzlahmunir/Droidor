@@ -1,0 +1,17 @@
+# Never bake secrets into an image layer. Compose still passes the values
+# through `environment:` at runtime.
+.env
+
+# Crawl output: raw HTML cache and generated reports. These are bind-mounted
+# at runtime, so copying them in would just bloat the image with a stale copy.
+data/
+
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+.git/
+.gitignore
+*.md
+!README.md

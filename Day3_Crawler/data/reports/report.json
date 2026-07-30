@@ -1,0 +1,193 @@
+{
+  "generated_at": "2026-07-30T11:51:30.671548+00:00",
+  "total_urls_processed": 25,
+  "status_counts": {
+    "bot_wall": 5,
+    "junk": 1,
+    "stored": 19
+  },
+  "integrity": {
+    "total_records": 25,
+    "sum_of_status_counts": 25,
+    "consistent": true
+  },
+  "duplicates": {
+    "total": 0,
+    "pct": 0.0,
+    "by_layer": {
+      "url_after_normalisation": {
+        "count": 0,
+        "pct": 0.0,
+        "method": "Exact match on the canonical URL after normalisation (https forced, tracking params stripped, trailing slash and #fragment removed, host lowercased)."
+      },
+      "content_sha256": {
+        "count": 0,
+        "pct": 0.0,
+        "method": "SHA-256 of the whitespace-normalised article text. Catches syndicated copies under different URLs."
+      },
+      "near_duplicate": {
+        "count": 0,
+        "pct": 0.0,
+        "method": "Jaccard similarity over 5-word shingles, threshold 85%.",
+        "matches": []
+      }
+    },
+    "highest_similarity_among_kept": 0.0046
+  },
+  "extraction": {
+    "failed_or_junk": 1,
+    "pct": 4.0,
+    "extraction_failed": {
+      "count": 0,
+      "pct": 0.0,
+      "meaning": "Page fetched, but no article text came out of it."
+    },
+    "junk": {
+      "count": 1,
+      "pct": 4.0,
+      "meaning": "Text extracted, but it failed a quality rule.",
+      "by_rule": {
+        "too_short": 1
+      }
+    },
+    "rules": {
+      "too_short": "fewer than 300 characters",
+      "high_link_density": "more than 35% of characters inside <a> tags",
+      "extractor_disagreement": "trafilatura and readability-lxml disagreed on length by more than 50%"
+    }
+  },
+  "publish_dates": {
+    "scope": "articles that were stored (a date is only meaningful for those)",
+    "stored_total": 19,
+    "with_date": 19,
+    "with_date_pct": 100.0,
+    "missing_or_unparseable": 0,
+    "missing_or_unparseable_pct": 0.0,
+    "no_date_found_at_all": 0,
+    "found_but_unparseable": 0,
+    "by_source": {
+      "rss": 19
+    },
+    "unparseable_examples": []
+  },
+  "lengths": {
+    "articles_measured": 19,
+    "mean_chars": 8031,
+    "median_chars": 8941,
+    "min_chars": 514,
+    "max_chars": 18183,
+    "mean_words": 1253
+  },
+  "five_shortest": [
+    {
+      "rank": 1,
+      "chars": 514,
+      "words": 90,
+      "title": "A quote from D. Richard Hipp",
+      "url": "https://simonwillison.net/2026/Jul/29/d-richard-hipp",
+      "api_document_id": 6,
+      "published_at": "2026-07-29T21:15:21+00:00",
+      "link_density": 0.0659,
+      "excerpt": "29th July 2026\nYears ago, we didn’t have SQL. There were people whose job was to generate software that would query large data sets. Their job title was COBOL programmer.\nThen SQL comes along—I’m simplifying this only a little bit—and it gives you this convenient way so people could just specify. With a very simple specification, you can generate all of that code that you had to pay the expensive COBOL programmer to do before.\nThat didn’t mean programmers went away. It just meant the job changed a little bit.",
+      "truncated": false
+    },
+    {
+      "rank": 2,
+      "chars": 746,
+      "words": 126,
+      "title": "A quote from Matthew Green",
+      "url": "https://simonwillison.net/2026/Jul/29/matthew-green",
+      "api_document_id": 8,
+      "published_at": "2026-07-29T18:18:15+00:00",
+      "link_density": 0.0805,
+      "excerpt": "29th July 2026\nRight now we’re in the midst of a historic transition from traditional public-key algorithms based on EC-based cryptography and RSA, moving over to new post-quantum algorithms based on novel problems. This is why there are so many standards like HAWK being considered. If there was ever a perfect time for a massive new public cryptanalysis capability to come on line, we’re in it. So unless AIs succeed in undermining all of our hard problems altogether (or we live in Impagliazzo’s Minicrypt) then this could not be a better time for AI to get good at cryptanalysis. In the best case",
+      "truncated": true
+    },
+    {
+      "rank": 3,
+      "chars": 1171,
+      "words": 187,
+      "title": "AI Worming through Word",
+      "url": "https://simonwillison.net/2026/Jul/29/ai-worming-through-word",
+      "api_document_id": 7,
+      "published_at": "2026-07-29T18:43:03+00:00",
+      "link_density": 0.0873,
+      "excerpt": "29th July 2026 - Link Blog\nAI Worming through Word (via) Neat new prompt injection variant by Håkon Måløy, who found a way to upgrade prompt injection attacks against Microsoft Word to full self-replicating worms:\nAn attacker places hidden instructions in a document that is later used as source material in Copilot for Word. Copilot may interpret those instructions as part of the user’s request, causing it to manipulate the document being drafted or edited. Copilot may then also copy the hidden instructions into the resulting document, turning that document into a new carrier. If the carrier is",
+      "truncated": true
+    },
+    {
+      "rank": 4,
+      "chars": 1290,
+      "words": 219,
+      "title": "Discovering cryptographic weaknesses with Claude",
+      "url": "https://simonwillison.net/2026/Jul/28/discovering-cryptographic-weaknesses-with-claude",
+      "api_document_id": 9,
+      "published_at": "2026-07-28T22:45:37+00:00",
+      "link_density": 0.1157,
+      "excerpt": "28th July 2026 - Link Blog\nDiscovering cryptographic weaknesses with Claude (via) The best part of this article (here's the repo) about how Anthropic researchers used Claude Mythos to find mathematical flaws in both HAWK and a weaker version of AES (\"neither of these results has a practical impact on today’s computer systems\") is the prompts that they shared, spelling mistakes included:\nthe models tend to think it is impossible to solve so they don't try they need a good amount of prompting.\nwhy not do aes-128 r7? the whole point is to find something better than existing approaches.\nno again t",
+      "truncated": true
+    },
+    {
+      "rank": 5,
+      "chars": 1334,
+      "words": 250,
+      "title": "Links to CSS colour palettes",
+      "url": "https://jvns.ca/blog/2026/05/04/css-colour-palettes",
+      "api_document_id": 4,
+      "published_at": "2026-05-04T00:00:00+00:00",
+      "link_density": 0.1097,
+      "excerpt": "A while back I decided to stop using Tailwind for new projects and to just write vanilla CSS instead.\nBut one thing I missed about Tailwind was the colour palette (here as CSS).\nIf I wanted a light blue I could just use blue-100\nand if I didn’t like it\nmaybe try blue-200\nor blue-50\n. I’m not very good with colours so it makes\na big difference to me to have a reasonable colour palette that somebody who is\nbetter at colour than me has thought about.\nBut I’m also a little tired of those Tailwind colours, so I asked on Mastodon today what other colour palettes were out there. And then a friend sai",
+      "truncated": true
+    }
+  ],
+  "blocked": {
+    "bot_wall": {
+      "count": 5,
+      "pct": 20.0
+    },
+    "login_required": {
+      "count": 0,
+      "pct": 0.0
+    },
+    "paywall_partial": {
+      "count": 0,
+      "pct": 0.0
+    }
+  },
+  "refused_before_fetch": {
+    "rate_limited": {
+      "count": 0,
+      "pct": 0.0
+    },
+    "invalid_url": {
+      "count": 0,
+      "pct": 0.0
+    },
+    "robots_disallowed": {
+      "count": 0,
+      "pct": 0.0
+    }
+  },
+  "hosts": {
+    "jvns.ca": {
+      "attempted": 5,
+      "stored": 5
+    },
+    "simonwillison.net": {
+      "attempted": 5,
+      "stored": 4
+    },
+    "hacks.mozilla.org": {
+      "attempted": 5,
+      "stored": 0
+    },
+    "blog.cloudflare.com": {
+      "attempted": 5,
+      "stored": 5
+    },
+    "research.google": {
+      "attempted": 5,
+      "stored": 5
+    }
+  }
+}
