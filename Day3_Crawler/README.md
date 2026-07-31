@@ -82,6 +82,7 @@ it:
 | Headings | 99 |
 | Fenced code blocks, with original indentation | 54 |
 | Links, as `[text](url)` | 290 |
+| Bullet and numbered list items | 75 |
 | Blockquotes, marked with `>` | 9 lines |
 | Bold and italic | 26 spans |
 
@@ -94,9 +95,16 @@ Blockquote markers matter for a different reason: without them, a passage the
 author was quoting from someone else reads as their own words.
 
 None of this worked at first — the initial version stored undifferentiated
-paragraphs with headings, code fences, links and quote markers all dropped.
-Nine separate causes across two rounds of review, all documented in
-[docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md).
+paragraphs with headings, code fences, links, list markers and quote markers
+all dropped. Twelve separate causes across three rounds of review, all
+documented in [docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md).
+
+**One measured limitation.** trafilatura splits list items at inline code
+spans, so lists are rebuilt from the DOM. Across the corpus, **no list item
+loses its text**, but only about a third are re-rendered with a `-` marker —
+the rest read as plain paragraphs. That is a formatting gap, not content
+loss, and closing it fully would need per-site rules or replacing the
+Markdown converter outright.
 
 One measurement note: article length and link density are computed on the
 visible prose, with `[text](url)` reduced to `text`. Counting URL characters

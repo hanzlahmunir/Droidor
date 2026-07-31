@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-31T15:21:15.195620+00:00",
+  "generated_at": "2026-07-31T15:47:42.091121+00:00",
   "total_urls_processed": 25,
   "status_counts": {
     "bot_wall": 5,
@@ -73,7 +73,7 @@
     "median_chars": 8730,
     "min_chars": 859,
     "max_chars": 18928,
-    "mean_words": 1201
+    "mean_words": 1202
   },
   "structure_retention": {
     "articles_with_headings": 10,
@@ -148,14 +148,14 @@
     },
     {
       "rank": 4,
-      "chars": 1609,
-      "words": 263,
+      "chars": 1601,
+      "words": 268,
       "title": "Release: llm 0.32rc2",
       "url": "https://simonwillison.net/2026/Jul/30/llm-rc2",
       "api_document_id": 8,
       "published_at": "2026-07-30T22:52:06+00:00",
-      "link_density": 0.2042,
-      "excerpt": "30th July 2026\n\nHot on the heels of [RC1](https://simonwillison.net/2026/Jul/30/llm-rc1/), this fixes a dependency issue and also adds two neat new features:\n\n> - The default model for users who have not set their own default is now\n> [GPT-5.6 Luna]. It was previously[GPT-4o mini]. Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch back to 4o mini using`llm models default gpt-4o-mini` , or switch to[GPT-5 nano], an even cheaper default model ($0.05/",
+      "link_density": 0.2062,
+      "excerpt": "30th July 2026\n\nHot on the heels of [RC1](https://simonwillison.net/2026/Jul/30/llm-rc1/), this fixes a dependency issue and also adds two neat new features:\n\n> - The default model for users who have not set their own default is now [GPT-5.6 Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna). It was previously [GPT-4o mini](https://developers.openai.com/api/docs/models/gpt-4o-mini). Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch b",
       "truncated": true
     },
     {
@@ -172,10 +172,6 @@
     }
   ],
   "blocked": {
-    "bot_wall": {
-      "count": 5,
-      "pct": 20.0
-    },
     "paywall_partial": {
       "count": 0,
       "pct": 0.0
@@ -183,14 +179,18 @@
     "login_required": {
       "count": 0,
       "pct": 0.0
+    },
+    "bot_wall": {
+      "count": 5,
+      "pct": 20.0
     }
   },
   "refused_before_fetch": {
-    "invalid_url": {
+    "rate_limited": {
       "count": 0,
       "pct": 0.0
     },
-    "rate_limited": {
+    "invalid_url": {
       "count": 0,
       "pct": 0.0
     },

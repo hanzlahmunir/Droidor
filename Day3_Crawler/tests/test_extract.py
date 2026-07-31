@@ -6,12 +6,15 @@ report groups by those names, and a silent rename would break the breakdown
 without breaking anything else.
 """
 
+import re
+
 from app.pipeline.extract import (
     compute_link_density,
     extract,
     normalise_text,
     restore_blockquotes,
     restore_code_indentation,
+    restore_list_items,
     strip_boilerplate_lines,
     strip_trailing_link_list,
 )
@@ -547,6 +550,121 @@ def test_bold_and_italic_survive(config):
     result = extract(html, "https://example.com/x", config)
     assert "**important**" in result.text
     assert "*subtle*" in result.text
+
+
+# ---------------------------------------------------------------------------
+# Bullet lists split apart by inline code.
+#
+# Third round of reviewer feedback, and the most serious: "in the real blog it
+# has 3 bullets ... while in our harvested blog, it failed to pick all 3 and
+# just gave 1". CONTENT loss, not formatting loss -- a reader counting three
+# recommendations found one.
+# ---------------------------------------------------------------------------
+
+SPLIT_LIST_HTML = (
+    "<html><body><article><h2>Filters</h2>"
+    + "<p>Some introductory prose that runs long enough to matter. </p>" * 8
+    + "<p>The ones I have used so far are:</p>"
+    + "<ul>"
+    '<li>translating plain text URLs into links '
+    "(<code>{{ event.description|urlize }}</code>)</li>"
+    '<li>formatting dates (<code>{{ row.date|date:"M j" }}</code>)</li>'
+    "<li><code>json_script</code>, which takes a Python dictionary and "
+    "converts it to JSON inside a <code>&lt;script&gt;</code> tag</li>"
+    "</ul>"
+    + "<p>Closing prose that also runs on for a good while here. </p>" * 8
+    + "</article></body></html>"
+)
+
+
+def test_all_three_bullets_survive(config):
+    """The reported bug: three source bullets became one.
+
+    trafilatura terminates a list item at every inline <code> span, so only
+    the first fragment kept its "-" marker and the rest ran together.
+    """
+    result = extract(SPLIT_LIST_HTML, "https://example.com/x", config)
+    bullets = [l for l in result.text.splitlines() if l.lstrip().startswith("- ")]
+    assert len(bullets) == 3, (
+        f"expected 3 bullets, got {len(bullets)}:\n" + "\n".join(bullets)
+    )
+
+
+def test_each_bullet_keeps_its_own_inline_code(config):
+    """The code spans are what split the items; they must still be there."""
+    result = extract(SPLIT_LIST_HTML, "https://example.com/x", config)
+    bullets = [l for l in result.text.splitlines() if l.lstrip().startswith("- ")]
+    assert any("urlize" in b for b in bullets)
+    assert any('date:"M j"' in b for b in bullets)
+    assert any("json_script" in b for b in bullets)
+
+
+def test_rejoiner_never_merges_across_list_items():
+    """The rejoiner made the bug worse before it was fixed.
+
+    Given items already shredded by trafilatura, it could not tell an item
+    boundary from a mid-sentence break and welded them into one line. Any
+    block CONTAINING a list marker is now off limits, not just one that
+    starts with it.
+    """
+    text = "- first item ends open\n\n- second item here"
+    assert "\n\n" in normalise_text(text)
+
+
+def test_match_key_absorbs_converter_punctuation_differences():
+    """Both real matching failures, pinned.
+
+    The two sides of a list match are the same text rendered by different
+    code, and they disagree on punctuation spacing and inserted markup:
+      - get_text(' ') gives "json_script , which"; trafilatura gives
+        "`json_script`, which"
+      - "the HTML as a <script> tag" becomes "a`<script>` tag"
+    Either difference silently defeated a literal comparison.
+    """
+    from app.pipeline.extract import _match_key
+
+    assert _match_key("json_script , which takes") == _match_key(
+        "`json_script`, which takes"
+    )
+    assert _match_key("the HTML as a <script> tag") == _match_key(
+        "the HTML as a`<script>` tag"
+    )
+
+
+def test_restore_list_items_leaves_unmatched_lists_alone():
+    """Unmatched means untouched -- a wrong replacement could eat prose."""
+    text = "Some prose that has nothing to do with any list."
+    out, fixed = restore_list_items(
+        text, "<html><ul><li>alpha item</li><li>beta item</li></ul></html>"
+    )
+    assert fixed == 0
+    assert out == text
+
+
+def test_restore_list_items_ignores_single_item_lists():
+    """A one-item <ul> is usually layout, not a list a reader would count."""
+    out, fixed = restore_list_items(
+        "prose", "<html><ul><li>only one</li></ul></html>"
+    )
+    assert fixed == 0
+
+
+def test_ordered_lists_keep_their_numbering(config):
+    """An <ol> must not come back as bullets: the order is the meaning."""
+    html = (
+        "<html><body><article><h2>Steps</h2>"
+        + "<p>Introductory prose long enough to clear the floor. </p>" * 8
+        + "<ol><li>first do <code>this</code></li>"
+        "<li>then do <code>that</code></li>"
+        "<li>finally check the result</li></ol>"
+        + "<p>Closing prose long enough to clear the floor. </p>" * 8
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    numbered = [
+        l for l in result.text.splitlines() if re.match(r"^\s*\d+\.\s", l)
+    ]
+    assert len(numbered) == 3, f"expected 3 numbered items, got {numbered}"
 
 
 def test_malformed_html_does_not_raise(config):

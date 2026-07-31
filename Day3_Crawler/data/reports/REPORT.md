@@ -1,6 +1,6 @@
 # Data Quality Report
 
-Generated: 2026-07-31 15:21 UTC
+Generated: 2026-07-31 15:47 UTC
 
 Every number below is computed by counting rows in `crawl_records`, not written by hand. Re-run `report` to regenerate it.
 
@@ -77,7 +77,7 @@ Where the dates actually came from (ladder, most authoritative first):
 | Shortest | 859 |
 | Longest | 18928 |
 
-Mean words per article: 1201.
+Mean words per article: 1202.
 
 ## Structure retained
 
@@ -173,19 +173,18 @@ curl http://localhost:8002/v1/chat/completions \
 
 ### 4. Release: llm 0.32rc2
 
-- **1609 chars**, 263 words
+- **1601 chars**, 268 words
 - URL: https://simonwillison.net/2026/Jul/30/llm-rc2
 - Stored as document `#8`
 - Publish date: 2026-07-30T22:52:06+00:00
-- Link density: 0.20
+- Link density: 0.21
 
 ```text
 30th July 2026
 
 Hot on the heels of [RC1](https://simonwillison.net/2026/Jul/30/llm-rc1/), this fixes a dependency issue and also adds two neat new features:
 
-> - The default model for users who have not set their own default is now
-> [GPT-5.6 Luna]. It was previously[GPT-4o mini]. Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch back to 4o mini using`llm models default gpt-4o-mini` , or switch to[GPT-5 nano], an even cheaper default model ($0.05/
+> - The default model for users who have not set their own default is now [GPT-5.6 Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna). It was previously [GPT-4o mini](https://developers.openai.com/api/docs/models/gpt-4o-mini). Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch b
 ...[truncated]
 ```
 

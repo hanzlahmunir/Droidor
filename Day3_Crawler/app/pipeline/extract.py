@@ -178,11 +178,23 @@ def _rejoin_split_sentences(text: str) -> str:
         prev_last_line = previous.rstrip().split("\n")[-1] if previous else ""
         next_first_line = block.lstrip().split("\n")[0] if block.strip() else ""
 
+        # A block that CONTAINS a list item anywhere is off limits, not just
+        # one that starts with a marker. This is the bug that turned a
+        # three-bullet list into one: trafilatura had already split the items
+        # into fragments, so the marker sat on the first fragment and the
+        # continuation checks happily glued the rest onto it.
+        prev_has_item = any(
+            _STRUCTURAL_LINE_RE.match(l) for l in previous.split("\n")
+        )
+        next_has_item = any(
+            _STRUCTURAL_LINE_RE.match(l) for l in block.split("\n")
+        )
+
         joinable = (
             prev_last_line
             and next_first_line
-            and not _STRUCTURAL_LINE_RE.match(prev_last_line)
-            and not _STRUCTURAL_LINE_RE.match(next_first_line)
+            and not prev_has_item
+            and not next_has_item
             and _UNFINISHED_END_RE.search(prev_last_line)
             and _CONTINUATION_START_RE.match(next_first_line)
         )
@@ -562,6 +574,188 @@ def restore_code_indentation(text: str, html: str) -> tuple[str, int]:
     return "\n".join(out), restored
 
 
+def _inline_markdown(node) -> str:
+    """Render a DOM node's children to inline Markdown.
+
+    Handles the four inline constructs that carry meaning in an article:
+    code, links, bold, italic. Everything else contributes its text.
+    Deliberately small -- this renders the inside of ONE list item, not a
+    general HTML-to-Markdown converter.
+    """
+    from bs4 import NavigableString, Tag
+
+    parts: list[str] = []
+    for child in node.children:
+        if isinstance(child, NavigableString):
+            parts.append(str(child))
+        elif isinstance(child, Tag):
+            inner = _inline_markdown(child)
+            name = child.name.lower()
+            if name == "code":
+                # Only fence it if it is not already inside a code span.
+                parts.append(f"`{inner.strip()}`" if inner.strip() else "")
+            elif name == "a":
+                href = (child.get("href") or "").strip()
+                parts.append(f"[{inner.strip()}]({href})" if href and inner.strip() else inner)
+            elif name in ("strong", "b"):
+                parts.append(f"**{inner.strip()}**" if inner.strip() else "")
+            elif name in ("em", "i"):
+                parts.append(f"*{inner.strip()}*" if inner.strip() else "")
+            elif name == "br":
+                parts.append(" ")
+            else:
+                parts.append(inner)
+    # Collapse the whitespace the source HTML used for indentation.
+    return " ".join("".join(parts).split())
+
+
+def _match_key(value: str) -> str:
+    """Reduce text to a form that compares equal across converters.
+
+    Both sides of a list match are the "same" text rendered by different
+    code: BeautifulSoup's get_text(' ') and trafilatura's Markdown. They
+    disagree on spacing around punctuation and on the backticks, asterisks
+    and brackets the converter inserts.
+
+    Two real mismatches this exists to absorb, both found by debugging a list
+    that silently refused to rebuild:
+      - `<code>json_script</code>, which...` -> "json_script , which" from
+        get_text(' ') but "`json_script`, which" from trafilatura
+      - "the HTML as a <script> tag" -> "a`<script>` tag", with backticks
+        inserted mid-phrase
+
+    Dropping all non-alphanumerics makes both sides comparable without
+    guessing which converter did what.
+    """
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
+def restore_list_items(text: str, html: str) -> tuple[str, int]:
+    """Rebuild bullet lists that trafilatura split apart.
+
+    THE BUG, reported by a reviewer who counted the bullets: a three-item list
+    in the source arrived as ONE bullet with all three items run together.
+
+    Cause, confirmed by reading trafilatura's raw output: it terminates a list
+    item at every inline `code` span, so
+
+        <li>formatting dates ({{ row.date|date:"M j" }})</li>
+
+    comes out as several fragments with only the FIRST carrying a "-" marker.
+    Our sentence-rejoiner then compounded it by gluing the fragments into one
+    line -- by that point the markers were already gone, so it could not tell
+    an item boundary from a mid-sentence break.
+
+    This is CONTENT loss, not formatting loss: a reader counting three
+    recommendations finds one.
+
+    THE FIX is the one that already worked for code indentation -- the DOM has
+    the real structure, so read the list from there instead of trying to
+    repair the converter's output.
+
+    Each <ul>/<ol> is located in the extracted text by its FIRST item's
+    opening words, and the run of text covering that list is replaced with a
+    properly rendered one. Lists whose first item cannot be located are left
+    untouched.
+    """
+    if not text or not re.search(r"<[uo]l[ >]", html, re.I):
+        return text, 0
+
+    try:
+        soup = BeautifulSoup(html, "lxml")
+    except Exception:  # noqa: BLE001
+        return text, 0
+
+    fixed = 0
+    for list_tag in soup.find_all(["ul", "ol"]):
+        # Skip navigation-ish lists: those are chrome the extractor already
+        # (correctly) dropped, and "restoring" them would put nav back in.
+        items = [li for li in list_tag.find_all("li", recursive=False)]
+        if len(items) < 2:
+            continue
+
+        ordered = list_tag.name.lower() == "ol"
+        rendered = []
+        for number, item in enumerate(items, start=1):
+            body = _inline_markdown(item)
+            if not body:
+                continue
+            marker = f"{number}." if ordered else "-"
+            rendered.append(f"{marker} {body}")
+        if len(rendered) < 2:
+            continue
+
+        # Anchor on the first item's opening words, compared on the
+        # punctuation-insensitive key so converter differences do not defeat
+        # the match.
+        first_key = _match_key(items[0].get_text(" ", strip=True))[:30]
+        last_key = _match_key(items[-1].get_text(" ", strip=True))
+        # A short key is only a problem if it is AMBIGUOUS. The original
+        # guard required 12+ characters, which silently skipped a genuine
+        # three-step ordered list whose first item keyed to "firstdothis"
+        # (11). Requiring uniqueness instead of length is the property that
+        # actually matters -- a short key appearing exactly once in the
+        # document identifies its list just as well as a long one.
+        if len(first_key) < 6 or len(last_key) < 6:
+            continue
+
+        blocks = text.split("\n\n")
+        keys = [_match_key(block) for block in blocks]
+
+        matches = [i for i, k in enumerate(keys) if first_key in k]
+        if len(matches) != 1:
+            # Zero matches: the list is not in the extracted text (usually a
+            # nav menu the extractor correctly dropped).
+            # Several matches: the key is ambiguous, so we cannot tell which
+            # occurrence is the list. Guessing risks replacing the wrong span.
+            continue
+        start = matches[0]
+
+        # NOTE: no "already looks fine, skip it" shortcut.
+        #
+        # An earlier version only rebuilt lists that were visibly split. That
+        # covered the reported bug but measured at just 25% of real body list
+        # items rendered with markers, because trafilatura also drops markers
+        # in ways that are not obviously "split" -- and it renders <ol> as
+        # "-" bullets, losing the numbering entirely.
+        #
+        # Rebuilding unconditionally from the DOM is simpler and strictly
+        # more accurate: the DOM is the source of truth for what the author
+        # wrote. The safety comes from the match being unique and the span
+        # being size-checked below, not from guessing whether a repair is
+        # needed.
+
+        # The last item's text may be spread over several blocks -- that
+        # splitting is exactly what this function undoes. So walk forward
+        # while the accumulated text is still consuming the final item, and
+        # stop at the first block that contributes nothing to it.
+        end = start
+        consumed = ""
+        for index in range(start, min(start + 12, len(blocks))):
+            consumed += keys[index]
+            end = index
+            if last_key[-20:] and last_key[-20:] in consumed:
+                break
+        else:
+            # Never saw the end of the final item; replacing a guessed span
+            # risks swallowing real prose, so leave this list alone.
+            continue
+
+        # Refuse to replace a span that is much larger than the list itself.
+        # If the arithmetic is off, this is what stops the function deleting
+        # paragraphs of an article.
+        replacement = "\n".join(rendered)
+        original_len = len("\n\n".join(blocks[start : end + 1]))
+        if original_len > len(replacement) * 3 + 400:
+            continue
+
+        blocks[start : end + 1] = [replacement]
+        text = "\n\n".join(blocks)
+        fixed += 1
+
+    return text, fixed
+
+
 def restore_blockquotes(text: str, html: str) -> tuple[str, int]:
     """Re-mark quoted passages with Markdown '>' prefixes.
 
@@ -716,10 +910,21 @@ def extract(html: str, url: str | None, config: Config) -> ExtractionResult:
     html = unwrap_heading_anchors(html)
 
     raw_text, title = _extract_primary(html, url)
-    text = normalise_text(raw_text)
+
+    # Rebuild split-apart lists BEFORE normalise_text.
+    #
+    # Order matters and was found by getting it wrong: normalise_text runs the
+    # sentence-rejoiner, which merges paragraph fragments. Given a list whose
+    # items trafilatura has already shredded, the rejoiner cannot tell an item
+    # boundary from a mid-sentence break and welds three bullets into one.
+    # Restoring the list first means the rejoiner sees proper list markers and
+    # leaves them alone.
+    text, lists_fixed = restore_list_items(raw_text, html)
+
+    text = normalise_text(text)
 
     # Restore what the markdown converter dropped, using the DOM as the
-    # source of truth. Both run AFTER normalise_text: it is what collapses
+    # source of truth. These run AFTER normalise_text: it is what collapses
     # whitespace, so restoring first would have its work undone.
     #
     # Code indentation first -- normalise_text leaves fenced blocks alone, so
@@ -844,6 +1049,8 @@ def extract(html: str, url: str | None, config: Config) -> ExtractionResult:
         notes.append(f"removed {boilerplate_removed} boilerplate line(s)")
     if link_list_lines_removed:
         notes.append(f"removed a trailing link list ({link_list_lines_removed} lines)")
+    if lists_fixed:
+        notes.append(f"rebuilt {lists_fixed} split list(s)")
     if code_restored:
         notes.append(f"restored indentation in {code_restored} code block(s)")
     if quotes_marked:

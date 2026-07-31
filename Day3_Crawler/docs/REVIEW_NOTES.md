@@ -10,6 +10,58 @@ during the build, not a preference.
 These five are the most useful part of this document: each was invisible in
 code review and only appeared when the thing was actually used.
 
+### -3. A three-bullet list arrived as one bullet
+
+**Symptom.** A reviewer counted: "in the real blog it has 3 bullets ... while
+in our harvested blog, it failed to pick all 3 and just gave 1."
+
+**Cause.** trafilatura terminates a list item at every inline `<code>` span.
+The source
+
+```html
+<li>formatting dates (<code>{{ row.date|date:"M j" }}</code>)</li>
+```
+
+came out as several fragments with only the *first* carrying a `-` marker.
+Our own sentence-rejoiner then made it worse: by the time it ran the markers
+were gone, so it could not distinguish an item boundary from a mid-sentence
+break and welded the fragments into one line.
+
+**Fix.** Same principle that worked for code indentation — the DOM has the
+real structure, so lists are rebuilt from `<ul>`/`<ol>` rather than repaired
+from the converter's output. The rejoiner now refuses to merge any block
+*containing* a list marker, not just one that starts with it.
+
+**Three matching bugs found while getting this right**, each caught by
+instrumenting rather than guessing:
+
+1. Anchoring the end of a list on the last item's *closing* words failed.
+   The plain text reads `the HTML as a <script> tag`, but the converter
+   emits it with a backtick jammed against the preceding word — no space,
+   backticks mid-phrase — so a literal probe taken from the end of an item
+   never matched. Switched to the last item's opening words.
+2. Comparing raw strings failed on punctuation spacing —
+   `get_text(' ')` yields `json_script , which` where trafilatura yields
+   `` `json_script`, which ``. Both sides now compare through `_match_key`,
+   which strips everything non-alphanumeric.
+3. A minimum key length of 12 characters silently skipped a genuine
+   three-step ordered list whose first item keyed to `firstdothis` (11).
+   Length was the wrong property — replaced with a **uniqueness** check,
+   which is what actually makes a match safe.
+
+**Honest limitation, measured.** Of 113 list items in genuine article-body
+lists across the corpus, **0 lose their text** — no content is lost. But only
+about a third are rendered with a `-` marker; the rest read as plain
+paragraphs. Of 47 candidate lists, 22 match cleanly, 13 fail to anchor their
+end, and 8 have first-item text ambiguous with other content, and those are
+skipped rather than risk replacing the wrong span.
+
+So the reported bug — content collapsing from three bullets to one — is
+fixed and tested. Full marker fidelity across every site is not achieved, and
+the remaining gap is formatting rather than content. Chasing it further means
+either a per-site rule set or replacing trafilatura's converter wholesale;
+neither is justified for the improvement available.
+
 ### -2. Links, code indentation and blockquotes were all being flattened
 
 **Symptom.** Second round of review on the same article: "the hypertexts are
