@@ -10,6 +10,8 @@ from app.pipeline.extract import (
     compute_link_density,
     extract,
     normalise_text,
+    restore_blockquotes,
+    restore_code_indentation,
     strip_boilerplate_lines,
     strip_trailing_link_list,
 )
@@ -405,6 +407,146 @@ def test_boilerplate_inside_a_code_block_is_kept():
     cleaned, removed = strip_boilerplate_lines(text)
     assert removed == 0
     assert "advertisement = None" in cleaned
+
+
+# ---------------------------------------------------------------------------
+# Inline formatting: links, code indentation, blockquotes.
+#
+# Second round of reviewer feedback on the same stored article: "the
+# hypertexts are just simple text, the code is not indented (Python doesn't
+# work without indentation), and text that's in a box and italic is here just
+# simple text."
+# ---------------------------------------------------------------------------
+
+INDENTED_CODE_HTML = (
+    "<html><body><article><h2>Code</h2>"
+    + "<p>Here is a class with methods, described at length. </p>" * 8
+    + "<pre><code>class Foo:\n    def bar(self):\n        return 1\n</code></pre>"
+    + "<p>And some closing prose to keep the length up. </p>" * 8
+    + "</article></body></html>"
+)
+
+
+def test_code_indentation_is_restored(config):
+    """The most serious of the three: flattened Python is invalid Python.
+
+    trafilatura strips leading whitespace from every line of a code block.
+    Verified against the source HTML of a real page: the original has
+    `    def approved(self):` and the output had it flush left. A reader
+    copying that snippet gets an IndentationError.
+
+    Fixed by taking code text from the DOM, where <pre> preserves whitespace
+    by definition.
+    """
+    result = extract(INDENTED_CODE_HTML, "https://example.com/x", config)
+    assert "    def bar(self):" in result.text, (
+        f"code indentation was not restored:\n{result.text}"
+    )
+    assert "        return 1" in result.text
+
+
+def test_restore_code_indentation_leaves_unmatched_blocks_alone():
+    """A wrong replacement is worse than a missing indent.
+
+    If the fenced block cannot be matched back to a <pre> in the DOM, it must
+    be returned untouched rather than swapped for something similar.
+    """
+    text = "```\nsomething not in the html at all\n```"
+    out, restored = restore_code_indentation(text, "<html><pre>unrelated</pre></html>")
+    assert restored == 0
+    assert out == text
+
+
+def test_restore_code_indentation_is_a_noop_without_code():
+    out, restored = restore_code_indentation("just prose", "<html><p>hi</p></html>")
+    assert restored == 0
+    assert out == "just prose"
+
+
+def test_links_are_kept_as_markdown(config):
+    """Reviewer: hyperlinks arrived as plain text.
+
+    A link is information. "See this post" with the URL stripped is strictly
+    less useful than what the author published.
+    """
+    html = (
+        "<html><body><article><h2>T</h2>"
+        + "<p>Body text that needs to be long enough to pass the floor. </p>" * 8
+        + '<p>Read <a href="https://example.com/post">this post</a> for more.</p>'
+        + "<p>More body text to keep the article above the length floor. </p>" * 8
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    assert "[this post](https://example.com/post)" in result.text
+
+
+def test_link_urls_do_not_inflate_length_or_density(config):
+    """Keeping links must not skew the measurements the report is built on.
+
+    Storing [text](url) puts every URL in the raw string. Counting those
+    characters would inflate length and link density on exactly the articles
+    that cite their sources well -- pushing good writing toward the junk
+    threshold for being well-referenced.
+    """
+    prose = "<p>Plain sentence of prose used as filler content here. </p>" * 10
+    plain = f"<html><body><article><h2>T</h2>{prose}<p>See the docs here.</p></article></body></html>"
+    linked = (
+        "<html><body><article><h2>T</h2>" + prose
+        + '<p>See <a href="https://example.com/a/very/long/path/that/goes/on/and/on">the docs</a> here.</p>'
+        + "</article></body></html>"
+    )
+    a = extract(plain, "https://example.com/x", config)
+    b = extract(linked, "https://example.com/x", config)
+    # The long URL must not add hundreds of characters to the measured length.
+    assert abs(a.chars - b.chars) < 40, f"URL inflated length: {a.chars} vs {b.chars}"
+
+
+def test_blockquotes_are_marked(config):
+    """Reviewer: boxed/italic quoted text arrived as ordinary prose.
+
+    This changes attribution, not just appearance: a passage the author was
+    quoting from someone else becomes indistinguishable from their own words.
+    Measured across six real cached pages -- quote text present in all six,
+    '>' marker in none.
+    """
+    html = (
+        "<html><body><article><h2>T</h2>"
+        + "<p>Introductory prose that runs on for a while here. </p>" * 8
+        + "<blockquote><p>This passage was written by somebody else entirely "
+          "and must remain attributable to them.</p></blockquote>"
+        + "<p>Closing prose that also runs on for a while here. </p>" * 8
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    quoted = [l for l in result.text.splitlines() if l.lstrip().startswith(">")]
+    assert quoted, f"blockquote was not marked:\n{result.text}"
+    assert any("somebody else" in l for l in quoted)
+
+
+def test_restore_blockquotes_ignores_short_quotes():
+    """A very short quote is too likely to collide with ordinary prose.
+
+    Mis-marking a sentence as a quotation is a worse error than leaving a
+    real quotation unmarked, so the matcher requires a substantial passage.
+    """
+    text = "Some ordinary prose here."
+    out, marked = restore_blockquotes(text, "<html><blockquote>ok</blockquote></html>")
+    assert marked == 0
+    assert out == text
+
+
+def test_bold_and_italic_survive(config):
+    """Emphasis is authorial intent -- "do NOT do this" reads differently
+    without it."""
+    html = (
+        "<html><body><article><h2>T</h2>"
+        + "<p>Filler prose to clear the length floor comfortably. </p>" * 10
+        + "<p>This is <strong>important</strong> and this is <em>subtle</em>.</p>"
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    assert "**important**" in result.text
+    assert "*subtle*" in result.text
 
 
 def test_malformed_html_does_not_raise(config):

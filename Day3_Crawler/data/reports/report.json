@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-31T14:40:02.851841+00:00",
+  "generated_at": "2026-07-31T15:21:15.195620+00:00",
   "total_urls_processed": 25,
   "status_counts": {
     "bot_wall": 5,
@@ -31,7 +31,7 @@
         "matches": []
       }
     },
-    "highest_similarity_among_kept": 0.0046
+    "highest_similarity_among_kept": 0.1561
   },
   "extraction": {
     "failed_or_junk": 0,
@@ -69,16 +69,16 @@
   },
   "lengths": {
     "articles_measured": 20,
-    "mean_chars": 7727,
-    "median_chars": 8787,
-    "min_chars": 595,
-    "max_chars": 18716,
-    "mean_words": 1195
+    "mean_chars": 7812,
+    "median_chars": 8730,
+    "min_chars": 859,
+    "max_chars": 18928,
+    "mean_words": 1201
   },
   "structure_retention": {
     "articles_with_headings": 10,
     "articles_with_headings_pct": 50.0,
-    "total_headings": 109,
+    "total_headings": 99,
     "articles_with_code_blocks": 9,
     "total_code_blocks": 54,
     "long_articles_without_headings": [
@@ -89,7 +89,7 @@
       },
       {
         "url": "https://research.google/blog/towards-demystifying-the-creativity-of-diffusion-models",
-        "chars": 9038,
+        "chars": 8924,
         "source": "research.google"
       },
       {
@@ -99,7 +99,7 @@
       },
       {
         "url": "https://research.google/blog/towards-a-quantum-computer-that-learns-from-its-errors",
-        "chars": 7395,
+        "chars": 7094,
         "source": "research.google"
       },
       {
@@ -112,66 +112,70 @@
   "five_shortest": [
     {
       "rank": 1,
-      "chars": 595,
-      "words": 99,
+      "chars": 859,
+      "words": 142,
       "title": "A quote from Bruce Schneier",
       "url": "https://simonwillison.net/2026/Jul/30/bruce-schneier",
       "api_document_id": 9,
       "published_at": "2026-07-30T18:25:26+00:00",
-      "link_density": 0.1131,
-      "excerpt": "30th July 2026\n\nThe writing assignments I give my students are gym tasks, not work tasks. I ask them to write policy memos not because the world needs more policy memos. I assign them because the very act of writing, which includes thinking and outlining and drafting and editing, making and criticizing and revising arguments, will help develop the critical thinking skills they will need in their future careers. And without this constant mental exercise, those skills will atrophy. Employers are already noticing.\n\n— Bruce Schneier, Should You Use AI for a Task? Here’s a Simple Way to Decide",
-      "truncated": false
+      "link_density": 0.3263,
+      "excerpt": "30th July 2026\n\n> The writing assignments I give my students are gym tasks, not work tasks. I ask them to write policy memos not because the world needs more policy memos. I assign them because the very act of writing, which includes thinking and outlining and drafting and editing, making and criticizing and revising arguments, will help develop the critical thinking skills they will need in their future careers. And without this constant mental exercise, those skills will atrophy. Employers are\n\n[already noticing].\n\n— [Bruce Schneier](https://www.schneier.com/blog/archives/2026/07/should-you-",
+      "truncated": true
     },
     {
       "rank": 2,
-      "chars": 1157,
-      "words": 172,
-      "title": "Release: llm-chat-completions-server 0.1a0",
-      "url": "https://simonwillison.net/2026/Jul/30/llm-chat-completions-server",
-      "api_document_id": 10,
-      "published_at": "2026-07-30T15:43:16+00:00",
-      "link_density": 0.0592,
-      "excerpt": "30th July 2026\n\nA key goal of the new content-addressable logs in LLM 0.32rc1 was being able to support OpenAI Chat Completion style requests where each incoming message extends the previous conversation, like this:\n\n```\ncurl http://localhost:8002/v1/chat/completions \\\n-H 'Content-Type: application/json' \\\n-d '{\n\"model\": \"qwen3.5-4b\",\n\"messages\": [\n{\"role\": \"user\", \"content\": \"Capital of France?\"},\n{\"role\": \"assistant\", \"content\": \"Paris.\"},\n{\"role\": \"user\", \"content\": \"Germany?\"}\n]\n}'\n```\n\nHere the conversation state is tracked by the client, so each of these requests gets longer and longer. ",
-      "truncated": true
-    },
-    {
-      "rank": 3,
-      "chars": 1334,
-      "words": 224,
-      "title": "Release: llm 0.32rc2",
-      "url": "https://simonwillison.net/2026/Jul/30/llm-rc2",
-      "api_document_id": 8,
-      "published_at": "2026-07-30T22:52:06+00:00",
-      "link_density": 0.0868,
-      "excerpt": "30th July 2026\n\nHot on the heels of RC1, this fixes a dependency issue and also adds two neat new features:\n\n- The default model for users who have not set their own default is now GPT-5.6 Luna. It was previously GPT-4o mini. Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch back to 4o mini using\n`llm models default gpt-4o-mini` , or switch to GPT-5 nano, an even cheaper default model ($0.05/$0.40), using`llm models default gpt-5-nano` . #1576- New",
-      "truncated": true
-    },
-    {
-      "rank": 4,
-      "chars": 1467,
-      "words": 268,
+      "chars": 1453,
+      "words": 258,
       "title": "Links to CSS colour palettes",
       "url": "https://jvns.ca/blog/2026/05/04/css-colour-palettes",
       "api_document_id": 4,
       "published_at": "2026-05-04T00:00:00+00:00",
-      "link_density": 0.0962,
-      "excerpt": "# Links to CSS colour palettes\n\nA while back I decided to stop using Tailwind for new projects and to just write vanilla CSS instead.\n\nBut one thing I missed about Tailwind was the colour palette (here as CSS).\nIf I wanted a light blue I could just use `blue-100` and if I didn’t like it\nmaybe try `blue-200` or `blue-50` . I’m not very good with colours so it makes\na big difference to me to have a reasonable colour palette that somebody who is\nbetter at colour than me has thought about.\n\nBut I’m also a little tired of those Tailwind colours, so I asked on Mastodon today what other colour palett",
+      "link_density": 0.0965,
+      "excerpt": "# Links to CSS colour palettes\n\nA while back I decided to stop using Tailwind for new projects and to just write vanilla CSS instead.\n\nBut one thing I missed about Tailwind was the [colour palette](https://v2.tailwindcss.com/docs/customizing-colors#color-palette-reference) ([here as CSS](https://gist.github.com/jvns/9e59b2cd1fe12601084ba78dded072fe)).\nIf I wanted a light blue I could just use `blue-100` and if I didn’t like it\nmaybe try `blue-200` or `blue-50` . I’m not very good with colours so it makes\na big difference to me to have a reasonable colour palette that somebody who is\nbetter at ",
+      "truncated": true
+    },
+    {
+      "rank": 3,
+      "chars": 1557,
+      "words": 227,
+      "title": "Release: llm-chat-completions-server 0.1a0",
+      "url": "https://simonwillison.net/2026/Jul/30/llm-chat-completions-server",
+      "api_document_id": 10,
+      "published_at": "2026-07-30T15:43:16+00:00",
+      "link_density": 0.2132,
+      "excerpt": "30th July 2026\n\n[Release](https://simonwillison.net/elsewhere/release/)\n\n[llm-chat-completions-server 0.1a0](https://github.com/simonw/llm-chat-completions-server/releases/tag/0.1a0)— LLM plugin to serve an OpenAI Chat Completions API endpoint\n\nA key goal of the new content-addressable logs [in LLM 0.32rc1](https://simonwillison.net/2026/Jul/30/llm-rc1/) was being able to support OpenAI Chat Completion style requests where each incoming message extends the previous conversation, like this:\n\n```\ncurl http://localhost:8002/v1/chat/completions \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n   ",
+      "truncated": true
+    },
+    {
+      "rank": 4,
+      "chars": 1609,
+      "words": 263,
+      "title": "Release: llm 0.32rc2",
+      "url": "https://simonwillison.net/2026/Jul/30/llm-rc2",
+      "api_document_id": 8,
+      "published_at": "2026-07-30T22:52:06+00:00",
+      "link_density": 0.2042,
+      "excerpt": "30th July 2026\n\nHot on the heels of [RC1](https://simonwillison.net/2026/Jul/30/llm-rc1/), this fixes a dependency issue and also adds two neat new features:\n\n> - The default model for users who have not set their own default is now\n> [GPT-5.6 Luna]. It was previously[GPT-4o mini]. Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch back to 4o mini using`llm models default gpt-4o-mini` , or switch to[GPT-5 nano], an even cheaper default model ($0.05/",
       "truncated": true
     },
     {
       "rank": 5,
-      "chars": 1709,
-      "words": 257,
+      "chars": 1977,
+      "words": 301,
       "title": "Advancing the price-performance frontier with GPT‑5.6",
       "url": "https://simonwillison.net/2026/Jul/30/luna-price-drop",
       "api_document_id": 6,
       "published_at": "2026-07-30T23:58:42+00:00",
-      "link_density": 0.1064,
-      "excerpt": "30th July 2026 - Link Blog\n\n**Advancing the price-performance frontier with GPT‑5.6** (via) Huge price drop from OpenAI today: GPT-5.6 Terra got a 20% reduction, and GPT-5.6 Luna got a massive 80% drop.\n\nOpenAI credit 5.6 Sol with enabling this: in How GPT‑5.6 fuses frontier intelligence with frontier efficiency they describe using 5.6 Sol to optimize load balancing, and more impressively to optimize inference itself:\n\nWe also used GPT‑5.6 Sol to optimize the model’s forward pass: the computation that transforms inputs into next-token predictions. Even when individual operations are fast, exce",
+      "link_density": 0.1984,
+      "excerpt": "30th July 2026 - Link Blog\n\n** Advancing the price-performance frontier with GPT‑5.6** (\n\n[via](https://news.ycombinator.com/item?id=49112867)) Huge price drop from OpenAI today: GPT-5.6 Terra got a 20% reduction, and GPT-5.6 Luna got a massive 80% drop.\n\nOpenAI credit 5.6 Sol with enabling this: in [How GPT‑5.6 fuses frontier intelligence with frontier efficiency](https://openai.com/index/gpt-5-6-frontier-intelligence-efficiency/) they describe using 5.6 Sol to optimize load balancing, and more impressively to optimize inference itself:\n\n> We also used GPT‑5.6 Sol to optimize the model’s forw",
       "truncated": true
     }
   ],
   "blocked": {
+    "bot_wall": {
+      "count": 5,
+      "pct": 20.0
+    },
     "paywall_partial": {
       "count": 0,
       "pct": 0.0
@@ -179,10 +183,6 @@
     "login_required": {
       "count": 0,
       "pct": 0.0
-    },
-    "bot_wall": {
-      "count": 5,
-      "pct": 20.0
     }
   },
   "refused_before_fetch": {

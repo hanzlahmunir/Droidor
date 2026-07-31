@@ -10,6 +10,65 @@ during the build, not a preference.
 These five are the most useful part of this document: each was invisible in
 code review and only appeared when the thing was actually used.
 
+### -2. Links, code indentation and blockquotes were all being flattened
+
+**Symptom.** Second round of review on the same article: "the hypertexts are
+just simple text, the code is not indented (Python doesn't work without
+indentation), and there is text which is in a box and italic but over here
+it's just simple text."
+
+**Code indentation — the serious one.** trafilatura strips leading whitespace
+from every line inside a code block. Verified by diffing the source HTML
+against its output: the page contains
+
+```text
+class EventQuerySet(SearchableQuerySetMixin, models.QuerySet):
+    def approved(self):
+        return self.filter(approved_at__isnull=False)
+```
+
+and all three lines came out flush left. For Python that is not cosmetic —
+the stored snippet is syntactically invalid and raises `IndentationError` if
+anyone copies it.
+
+Fixed by taking code text from the DOM rather than the converter: `<pre>`
+preserves whitespace by definition, and the raw HTML is already in hand.
+Blocks are matched by their first non-blank line (the flattened and original
+forms differ by exactly the whitespace being restored, so whole-block
+comparison can never match), with a line-count sanity check. **An unmatched
+block is left untouched** — a wrong replacement is worse than a missing
+indent.
+
+**Links.** `include_links` had been off. It could not be turned on earlier
+because it emptied nine of ten headings — but that was the *self-anchor*
+problem, already fixed by `unwrap_heading_anchors`. Re-measured after that
+landed: 8 links restored, 10 headings intact, 0 empty. The conflict was gone
+and the setting had simply never been revisited.
+
+**Blockquotes — an attribution bug, not a formatting one.** trafilatura keeps
+quoted text but drops the `>` marker, so a passage the author was quoting from
+someone else becomes indistinguishable from their own words. Measured across
+six real cached pages: text present in all six, marker in none. On a
+link-blog post where the quotation *is* the substance, that misrepresents
+both parties. Restored by matching each `<blockquote>`'s opening 60
+characters back to the extracted paragraph. Quotes under 40 characters are
+skipped — mis-marking ordinary prose as a quotation is worse than leaving a
+real one unmarked.
+
+**Bold and italic** turned out already to work in Markdown mode; the earlier
+flattening came from the plain-text output, and no change was needed.
+
+**A measurement trap this created.** Storing links as `[text](url)` puts every
+URL into the raw string. Counting those characters would inflate both length
+and link density on exactly the articles that cite their sources well —
+pushing good, well-referenced writing toward the junk threshold. So length and
+density are now measured on the text with link syntax reduced to its visible
+label, while storage keeps the full Markdown. Guarded by a test that compares
+an article with and without a long URL.
+
+**Result across the corpus:** 290 links, 54 code blocks, 9 quoted lines and 26
+bold spans preserved.
+
 ### -1. Stored articles had lost their headings and code blocks
 
 **Symptom.** A reviewer opened a stored Julia Evans post and reported: "the

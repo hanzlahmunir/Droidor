@@ -341,6 +341,20 @@ def strip_trailing_link_list(text: str) -> tuple[str, int]:
     return "\n".join(lines[:cut_at]).strip(), removed
 
 
+# Markdown link syntax: [visible text](https://url) -> visible text.
+_MD_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+
+
+def _strip_md_link_syntax(text: str) -> str:
+    """Reduce [text](url) to just text.
+
+    Used only for measurement, never for storage. Length and link-density are
+    questions about the PROSE a reader sees; the URLs behind the links are
+    metadata and counting their characters would distort both.
+    """
+    return _MD_LINK_RE.sub(r"\1", text)
+
+
 def compute_link_density(html: str, keep_text: str | None = None) -> float | None:
     """Fraction of visible characters that sit inside <a> tags.
 
@@ -447,6 +461,163 @@ def unwrap_heading_anchors(html: str) -> str:
         return html
 
 
+def restore_code_indentation(text: str, html: str) -> tuple[str, int]:
+    """Put the original indentation back inside fenced code blocks.
+
+    THE BUG. trafilatura strips leading whitespace from every line of a code
+    block. Verified by comparing the source HTML with its output on a real
+    page -- the source has
+
+        class EventQuerySet(...):
+            def approved(self):
+                return self.filter(...)
+
+    and trafilatura emits all three lines flush left. For Python that is not
+    a cosmetic loss: the stored snippet is syntactically invalid and would
+    not run if a reader copied it.
+
+    THE FIX. The raw HTML is already in hand, and <pre> preserves whitespace
+    by definition, so the correct text is available -- take it from the DOM
+    instead of trusting the converter.
+
+    MATCHING IS BY FIRST NON-BLANK LINE, deliberately. Matching on the whole
+    block cannot work: the flattened and original forms differ by exactly the
+    whitespace being restored, so they never compare equal. The first line of
+    a code block is almost always distinctive within one article, and a
+    length sanity-check guards the rare collision -- a candidate whose line
+    count differs wildly from the block it would replace is rejected rather
+    than substituted.
+
+    Blocks that cannot be matched are LEFT ALONE. A wrong replacement is far
+    worse than a missing indent, so the failure mode is "no change".
+    """
+    if "```" not in text or "<pre" not in html.lower():
+        return text, 0
+
+    try:
+        soup = BeautifulSoup(html, "lxml")
+    except Exception:  # noqa: BLE001
+        return text, 0
+
+    # Map first-line -> full original text, for every <pre> on the page.
+    originals: dict[str, list[str]] = {}
+    for pre in soup.find_all("pre"):
+        # get_text() on <pre> keeps newlines and leading spaces intact.
+        original = pre.get_text()
+        if not original.strip():
+            continue
+        first = next((l.strip() for l in original.splitlines() if l.strip()), "")
+        if first:
+            originals.setdefault(first, []).append(original.strip("\n"))
+
+    if not originals:
+        return text, 0
+
+    out: list[str] = []
+    restored = 0
+    lines = text.split("\n")
+    index = 0
+
+    while index < len(lines):
+        line = lines[index]
+        if not line.lstrip().startswith("```"):
+            out.append(line)
+            index += 1
+            continue
+
+        # Collect the fenced block.
+        fence_open = line
+        body: list[str] = []
+        index += 1
+        while index < len(lines) and not lines[index].lstrip().startswith("```"):
+            body.append(lines[index])
+            index += 1
+        fence_close = lines[index] if index < len(lines) else "```"
+        index += 1
+
+        first = next((l.strip() for l in body if l.strip()), "")
+        candidates = originals.get(first)
+        replacement = None
+        if candidates:
+            for candidate in candidates:
+                # Sanity check: the original may legitimately have MORE lines
+                # (trafilatura drops blank lines between methods), but a wild
+                # mismatch means we matched the wrong block.
+                if len(candidate.splitlines()) >= len(body) and (
+                    len(candidate.splitlines()) <= len(body) * 3 + 4
+                ):
+                    replacement = candidate
+                    break
+
+        if replacement is not None and replacement.splitlines() != body:
+            out.append(fence_open)
+            out.extend(replacement.splitlines())
+            out.append(fence_close)
+            restored += 1
+        else:
+            out.append(fence_open)
+            out.extend(body)
+            out.append(fence_close)
+
+    return "\n".join(out), restored
+
+
+def restore_blockquotes(text: str, html: str) -> tuple[str, int]:
+    """Re-mark quoted passages with Markdown '>' prefixes.
+
+    WHY THIS MATTERS MORE THAN IT LOOKS. trafilatura keeps blockquote TEXT but
+    drops the marker, so a passage the author was quoting from someone else
+    becomes indistinguishable from their own words. Measured across six real
+    cached pages: text present in all six, '>' marker in none.
+
+    That is not a formatting nicety -- it changes attribution. On a Simon
+    Willison link-blog post the quoted passage IS the substance of the piece,
+    and reading it as his own writing misrepresents both parties.
+
+    Matched by the first sentence of each blockquote, then every line of the
+    matching paragraph is prefixed. Unmatched quotes are left alone: a
+    mis-marked quote would be worse than an unmarked one.
+    """
+    if not text or "<blockquote" not in html.lower():
+        return text, 0
+
+    try:
+        soup = BeautifulSoup(html, "lxml")
+    except Exception:  # noqa: BLE001
+        return text, 0
+
+    # Opening fragments of each blockquote, longest first so the most
+    # specific match wins when one quote starts with another's words.
+    openers: list[str] = []
+    for quote in soup.find_all("blockquote"):
+        quoted = " ".join(quote.get_text(" ", strip=True).split())
+        if len(quoted) >= 40:
+            openers.append(quoted)
+    if not openers:
+        return text, 0
+    openers.sort(key=len, reverse=True)
+
+    blocks = text.split("\n\n")
+    marked = 0
+    for position, block in enumerate(blocks):
+        flat = " ".join(block.split())
+        if not flat or block.lstrip().startswith((">", "#", "```")):
+            continue
+        for quoted in openers:
+            # A 60-character prefix is long enough to be unambiguous and
+            # short enough to survive trafilatura's whitespace changes.
+            probe = quoted[:60]
+            if probe and probe in flat:
+                blocks[position] = "\n".join(
+                    f"> {line}" if line.strip() else ">"
+                    for line in block.split("\n")
+                )
+                marked += 1
+                break
+
+    return "\n\n".join(blocks), marked
+
+
 def _extract_primary(html: str, url: str | None) -> tuple[str, str | None]:
     """trafilatura: the extractor whose output we keep."""
     try:
@@ -471,7 +642,23 @@ def _extract_primary(html: str, url: str | None) -> tuple[str, str | None]:
             include_comments=False,
             include_tables=True,     # data tables are often the point
             include_images=False,
-            include_links=False,     # we want prose, not link text
+            # Keep bold and italic. Emphasis is authorial intent, not
+            # decoration -- "do NOT do this" reads differently unemphasised.
+            include_formatting=True,
+            # Keep links as Markdown [text](url).
+            #
+            # This was OFF, and turning it on used to empty nine of ten
+            # headings, because trafilatura converted each heading's own
+            # self-anchor into a link and lost the text. That is no longer
+            # true: unwrap_heading_anchors() now removes those anchors before
+            # extraction, so links can be kept in body prose without touching
+            # headings. Re-measured on the reported page after the unwrap
+            # landed: 8 links restored, 10 headings intact, 0 empty.
+            #
+            # Worth keeping because a link is information. "See this post"
+            # with the URL stripped is strictly less useful than the original,
+            # and the brief asks for the article as published.
+            include_links=True,
             #
             # favor_precision is deliberately NOT set, and that is a reversal.
             # It was on originally, on the reasoning that dropping a paragraph
@@ -530,6 +717,16 @@ def extract(html: str, url: str | None, config: Config) -> ExtractionResult:
 
     raw_text, title = _extract_primary(html, url)
     text = normalise_text(raw_text)
+
+    # Restore what the markdown converter dropped, using the DOM as the
+    # source of truth. Both run AFTER normalise_text: it is what collapses
+    # whitespace, so restoring first would have its work undone.
+    #
+    # Code indentation first -- normalise_text leaves fenced blocks alone, so
+    # the fences it produced are already stable landmarks to match against.
+    text, code_restored = restore_code_indentation(text, html)
+    text, quotes_marked = restore_blockquotes(text, html)
+
     text, boilerplate_removed = strip_boilerplate_lines(text)
     # Remove a trailing "Recent articles" list BEFORE measuring density, so
     # the measurement describes the text we are actually keeping. Measuring
@@ -538,10 +735,23 @@ def extract(html: str, url: str | None, config: Config) -> ExtractionResult:
 
     secondary = normalise_text(_extract_secondary(html))
     # Scoped to the kept text -- see compute_link_density for why.
-    link_density = compute_link_density(html, keep_text=text)
+    #
+    # Measured against the text with Markdown link SYNTAX removed. Now that
+    # links are kept as [text](url), the raw string contains every URL, and
+    # counting those characters would inflate link density on exactly the
+    # articles that cite their sources well -- pushing good writing over the
+    # junk threshold. The density question is "how much of this is link
+    # TEXT", which is what the visible label measures.
+    link_density = compute_link_density(html, keep_text=_strip_md_link_syntax(text))
 
-    chars = len(text)
-    words = len(text.split()) if text else 0
+    # Length is measured on the VISIBLE prose, with Markdown link syntax
+    # reduced to its label. Otherwise every stored URL inflates the count,
+    # the minimum-length gate gets easier to pass on link-heavy pages, and
+    # the report's mean/median article length silently drifts upward for a
+    # reason that has nothing to do with how much was written.
+    measurable = _strip_md_link_syntax(text)
+    chars = len(measurable)
+    words = len(measurable.split()) if measurable else 0
     secondary_chars = len(secondary)
 
     # Agreement = shorter / longer. Symmetric, so it does not matter which
@@ -634,6 +844,10 @@ def extract(html: str, url: str | None, config: Config) -> ExtractionResult:
         notes.append(f"removed {boilerplate_removed} boilerplate line(s)")
     if link_list_lines_removed:
         notes.append(f"removed a trailing link list ({link_list_lines_removed} lines)")
+    if code_restored:
+        notes.append(f"restored indentation in {code_restored} code block(s)")
+    if quotes_marked:
+        notes.append(f"re-marked {quotes_marked} blockquote(s)")
     if notes:
         joined = "; ".join(notes)
         result.detail = f"{result.detail}; {joined}" if result.detail else joined

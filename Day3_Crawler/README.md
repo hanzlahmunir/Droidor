@@ -75,13 +75,33 @@ example.com/post#section-2
 ### Structure is preserved, not just text
 
 Extraction emits **Markdown**, so an article keeps the shape its author gave
-it — headings stay headings, code stays in fenced blocks, nested lists keep
-their nesting. Across the recorded run that is 109 headings and 54 code
-blocks retained.
+it:
 
-This was originally wrong: the first version stored undifferentiated
-paragraphs with every heading and code fence dropped. Five separate causes,
-all documented in [docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md).
+| Kept | Recorded run |
+| --- | ---: |
+| Headings | 99 |
+| Fenced code blocks, with original indentation | 54 |
+| Links, as `[text](url)` | 290 |
+| Blockquotes, marked with `>` | 9 lines |
+| Bold and italic | 26 spans |
+
+Code indentation matters beyond appearance — flattened Python is invalid
+Python, so a reader copying a stored snippet would get an `IndentationError`.
+Code text is taken from the DOM, where `<pre>` preserves whitespace, rather
+than from the Markdown converter, which strips it.
+
+Blockquote markers matter for a different reason: without them, a passage the
+author was quoting from someone else reads as their own words.
+
+None of this worked at first — the initial version stored undifferentiated
+paragraphs with headings, code fences, links and quote markers all dropped.
+Nine separate causes across two rounds of review, all documented in
+[docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md).
+
+One measurement note: article length and link density are computed on the
+visible prose, with `[text](url)` reduced to `text`. Counting URL characters
+would inflate both on the articles that cite their sources best, pushing
+well-referenced writing toward the junk threshold.
 
 The Browse tab shows each article two ways — **Formatted** (rendered, how a
 reader sees it) and **Raw stored text** (exactly what is in the database, for
@@ -114,9 +134,9 @@ Results from the run recorded in this repo (25 URLs, 5 feeds):
 | Duplicates | 0 (0%) |
 | Extraction failed or junk | 0 (0%) |
 | Missing/unparseable date | 0 of 20 stored (0%) |
-| Mean / median length | 7,727 / 8,787 chars |
+| Mean / median length | 7,812 / 8,730 chars |
 | Blocked (bot wall) | 5 (20%) |
-| Headings / code blocks kept | 109 / 54 |
+| Structure kept | 99 headings, 54 code blocks, 290 links |
 
 Duplicates are reported by **detection layer**, not as one blended number:
 

@@ -1,6 +1,6 @@
 # Data Quality Report
 
-Generated: 2026-07-31 14:40 UTC
+Generated: 2026-07-31 15:21 UTC
 
 Every number below is computed by counting rows in `crawl_records`, not written by hand. Re-run `report` to regenerate it.
 
@@ -13,8 +13,8 @@ Every number below is computed by counting rows in `crawl_records`, not written 
 | Duplicates | 0 (0.0%) |
 | Extraction failed or junk | 0 (0.0%) |
 | Missing/unparseable date (of stored) | 0 (0.0%) |
-| Mean article length | 7727 chars |
-| Median article length | 8787 chars |
+| Mean article length | 7812 chars |
+| Median article length | 8730 chars |
 
 ## Every outcome
 
@@ -39,7 +39,7 @@ different things and have different reliability:
 | `content_sha256` | 0 | 0.0% | SHA-256 of the whitespace-normalised article text. Catches syndicated copies under different URLs. |
 | `near_duplicate` | 0 | 0.0% | Jaccard similarity over 5-word shingles, threshold 85%. |
 
-Highest similarity among articles we KEPT: **0.5%** (threshold 85%). 
+Highest similarity among articles we KEPT: **15.6%** (threshold 85%). 
 That is comfortably below the threshold, so no kept article is a borderline call.
 
 ## Extraction failures and junk
@@ -72,12 +72,12 @@ Where the dates actually came from (ladder, most authoritative first):
 
 | Metric | Characters |
 | --- | ---: |
-| Mean | 7727 |
-| Median | 8787 |
-| Shortest | 595 |
-| Longest | 18716 |
+| Mean | 7812 |
+| Median | 8730 |
+| Shortest | 859 |
+| Longest | 18928 |
 
-Mean words per article: 1195.
+Mean words per article: 1201.
 
 ## Structure retained
 
@@ -86,7 +86,7 @@ Clean text is not the whole job: an article stripped down to undifferentiated pa
 | Metric | Value |
 | --- | ---: |
 | Articles with headings | 10 of 20 (50.0%) |
-| Total headings kept | 109 |
+| Total headings kept | 99 |
 | Articles with code blocks | 9 |
 | Total code blocks kept | 54 |
 
@@ -95,9 +95,9 @@ Long articles (4,000+ chars) that came out with **no headings** — these are th
 | Article | Chars |
 | --- | ---: |
 | https://research.google/blog/symptomai-towards-a-conversational-ai-agent-for-everyday-symptom-assessment | 11018 |
-| https://research.google/blog/towards-demystifying-the-creativity-of-diffusion-models | 9038 |
+| https://research.google/blog/towards-demystifying-the-creativity-of-diffusion-models | 8924 |
 | https://research.google/blog/sensorfm-towards-a-general-intelligence-and-interface-for-wearable-health-data | 8536 |
-| https://research.google/blog/towards-a-quantum-computer-that-learns-from-its-errors | 7395 |
+| https://research.google/blog/towards-a-quantum-computer-that-learns-from-its-errors | 7094 |
 | https://research.google/blog/science-one-framework-a-verifiable-autonomous-research-framework-via-chain-of-evidence | 6250 |
 
 Known cause for `research.google`: its headings sit in a different DOM branch (`div.component-intro`) from its article body (`div.blog-summary`), so an extractor that selects one content container cannot associate them. Reported rather than worked around with a site-specific rule.
@@ -108,71 +108,26 @@ The brief predicts these are usually garbage, so they are quoted here rather tha
 
 ### 1. A quote from Bruce Schneier
 
-- **595 chars**, 99 words
+- **859 chars**, 142 words
 - URL: https://simonwillison.net/2026/Jul/30/bruce-schneier
 - Stored as document `#9`
 - Publish date: 2026-07-30T18:25:26+00:00
-- Link density: 0.11
+- Link density: 0.33
 
 ```text
 30th July 2026
 
-The writing assignments I give my students are gym tasks, not work tasks. I ask them to write policy memos not because the world needs more policy memos. I assign them because the very act of writing, which includes thinking and outlining and drafting and editing, making and criticizing and revising arguments, will help develop the critical thinking skills they will need in their future careers. And without this constant mental exercise, those skills will atrophy. Employers are already noticing.
+> The writing assignments I give my students are gym tasks, not work tasks. I ask them to write policy memos not because the world needs more policy memos. I assign them because the very act of writing, which includes thinking and outlining and drafting and editing, making and criticizing and revising arguments, will help develop the critical thinking skills they will need in their future careers. And without this constant mental exercise, those skills will atrophy. Employers are
 
-— Bruce Schneier, Should You Use AI for a Task? Here’s a Simple Way to Decide
-```
+[already noticing].
 
-### 2. Release: llm-chat-completions-server 0.1a0
-
-- **1157 chars**, 172 words
-- URL: https://simonwillison.net/2026/Jul/30/llm-chat-completions-server
-- Stored as document `#10`
-- Publish date: 2026-07-30T15:43:16+00:00
-- Link density: 0.06
-
-```text
-30th July 2026
-
-A key goal of the new content-addressable logs in LLM 0.32rc1 was being able to support OpenAI Chat Completion style requests where each incoming message extends the previous conversation, like this:
-
-```
-curl http://localhost:8002/v1/chat/completions \
--H 'Content-Type: application/json' \
--d '{
-"model": "qwen3.5-4b",
-"messages": [
-{"role": "user", "content": "Capital of France?"},
-{"role": "assistant", "content": "Paris."},
-{"role": "user", "content": "Germany?"}
-]
-}'
-```
-
-Here the conversation state is tracked by the client, so each of these requests gets longer and longer. 
+— [Bruce Schneier](https://www.schneier.com/blog/archives/2026/07/should-you-
 ...[truncated]
 ```
 
-### 3. Release: llm 0.32rc2
+### 2. Links to CSS colour palettes
 
-- **1334 chars**, 224 words
-- URL: https://simonwillison.net/2026/Jul/30/llm-rc2
-- Stored as document `#8`
-- Publish date: 2026-07-30T22:52:06+00:00
-- Link density: 0.09
-
-```text
-30th July 2026
-
-Hot on the heels of RC1, this fixes a dependency issue and also adds two neat new features:
-
-- The default model for users who have not set their own default is now GPT-5.6 Luna. It was previously GPT-4o mini. Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch back to 4o mini using
-`llm models default gpt-4o-mini` , or switch to GPT-5 nano, an even cheaper default model ($0.05/$0.40), using`llm models default gpt-5-nano` . #1576- New
-...[truncated]
-```
-
-### 4. Links to CSS colour palettes
-
-- **1467 chars**, 268 words
+- **1453 chars**, 258 words
 - URL: https://jvns.ca/blog/2026/05/04/css-colour-palettes
 - Stored as document `#4`
 - Publish date: 2026-05-04T00:00:00+00:00
@@ -183,32 +138,75 @@ Hot on the heels of RC1, this fixes a dependency issue and also adds two neat ne
 
 A while back I decided to stop using Tailwind for new projects and to just write vanilla CSS instead.
 
-But one thing I missed about Tailwind was the colour palette (here as CSS).
+But one thing I missed about Tailwind was the [colour palette](https://v2.tailwindcss.com/docs/customizing-colors#color-palette-reference) ([here as CSS](https://gist.github.com/jvns/9e59b2cd1fe12601084ba78dded072fe)).
 If I wanted a light blue I could just use `blue-100` and if I didn’t like it
 maybe try `blue-200` or `blue-50` . I’m not very good with colours so it makes
 a big difference to me to have a reasonable colour palette that somebody who is
-better at colour than me has thought about.
+better at 
+...[truncated]
+```
 
-But I’m also a little tired of those Tailwind colours, so I asked on Mastodon today what other colour palett
+### 3. Release: llm-chat-completions-server 0.1a0
+
+- **1557 chars**, 227 words
+- URL: https://simonwillison.net/2026/Jul/30/llm-chat-completions-server
+- Stored as document `#10`
+- Publish date: 2026-07-30T15:43:16+00:00
+- Link density: 0.21
+
+```text
+30th July 2026
+
+[Release](https://simonwillison.net/elsewhere/release/)
+
+[llm-chat-completions-server 0.1a0](https://github.com/simonw/llm-chat-completions-server/releases/tag/0.1a0)— LLM plugin to serve an OpenAI Chat Completions API endpoint
+
+A key goal of the new content-addressable logs [in LLM 0.32rc1](https://simonwillison.net/2026/Jul/30/llm-rc1/) was being able to support OpenAI Chat Completion style requests where each incoming message extends the previous conversation, like this:
+
+```
+curl http://localhost:8002/v1/chat/completions \
+  -H 'Content-Type: application/json' \
+  -d '{
+   
+...[truncated]
+```
+
+### 4. Release: llm 0.32rc2
+
+- **1609 chars**, 263 words
+- URL: https://simonwillison.net/2026/Jul/30/llm-rc2
+- Stored as document `#8`
+- Publish date: 2026-07-30T22:52:06+00:00
+- Link density: 0.20
+
+```text
+30th July 2026
+
+Hot on the heels of [RC1](https://simonwillison.net/2026/Jul/30/llm-rc1/), this fixes a dependency issue and also adds two neat new features:
+
+> - The default model for users who have not set their own default is now
+> [GPT-5.6 Luna]. It was previously[GPT-4o mini]. Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch back to 4o mini using`llm models default gpt-4o-mini` , or switch to[GPT-5 nano], an even cheaper default model ($0.05/
 ...[truncated]
 ```
 
 ### 5. Advancing the price-performance frontier with GPT‑5.6
 
-- **1709 chars**, 257 words
+- **1977 chars**, 301 words
 - URL: https://simonwillison.net/2026/Jul/30/luna-price-drop
 - Stored as document `#6`
 - Publish date: 2026-07-30T23:58:42+00:00
-- Link density: 0.11
+- Link density: 0.20
 
 ```text
 30th July 2026 - Link Blog
 
-**Advancing the price-performance frontier with GPT‑5.6** (via) Huge price drop from OpenAI today: GPT-5.6 Terra got a 20% reduction, and GPT-5.6 Luna got a massive 80% drop.
+** Advancing the price-performance frontier with GPT‑5.6** (
 
-OpenAI credit 5.6 Sol with enabling this: in How GPT‑5.6 fuses frontier intelligence with frontier efficiency they describe using 5.6 Sol to optimize load balancing, and more impressively to optimize inference itself:
+[via](https://news.ycombinator.com/item?id=49112867)) Huge price drop from OpenAI today: GPT-5.6 Terra got a 20% reduction, and GPT-5.6 Luna got a massive 80% drop.
 
-We also used GPT‑5.6 Sol to optimize the model’s forward pass: the computation that transforms inputs into next-token predictions. Even when individual operations are fast, exce
+OpenAI credit 5.6 Sol with enabling this: in [How GPT‑5.6 fuses frontier intelligence with frontier efficiency](https://openai.com/index/gpt-5-6-frontier-intelligence-efficiency/) they describe using 5.6 Sol to optimize load balancing, and more impressively to optimize inference itself:
+
+> We also used GPT‑5.6 Sol to optimize the model’s forw
 ...[truncated]
 ```
 
