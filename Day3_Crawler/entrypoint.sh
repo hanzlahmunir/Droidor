@@ -35,6 +35,29 @@ done
 echo "Preparing the crawler database..."
 python -c "from app.storage.database import create_schema; create_schema()"
 
+# Verify the UI's imports resolve the way STREAMLIT will resolve them, not the
+# way this shell does.
+#
+# This check exists because the UI shipped broken once. `streamlit run
+# app/ui.py` puts the script's directory (/app/app) on sys.path rather than
+# the working directory, so `from app.config import Config` raised
+# ModuleNotFoundError -- but only inside Streamlit. Every other check passed:
+# the CLI worked, the tests passed, and `python -c "import app.config"` in the
+# same container succeeded. Streamlit then started successfully and rendered
+# the traceback into the PAGE, so the container looked healthy and the logs
+# looked clean.
+#
+# `-c` with a chdir into the script's directory reproduces Streamlit's import
+# context exactly. Failing here stops the container with a readable error
+# instead of serving a broken page.
+echo "Verifying the UI's imports..."
+if ! (cd /app/app && python -c "import app.ui" >/dev/null 2>&1); then
+    echo "ERROR: app/ui.py cannot import its own package." >&2
+    echo "       PYTHONPATH is '${PYTHONPATH:-unset}' and must include /app." >&2
+    (cd /app/app && python -c "import app.ui") >&2 || true
+    exit 1
+fi
+
 echo "Starting the UI on http://localhost:8501"
 # exec so Streamlit becomes PID 1 and receives Docker's stop signals directly,
 # rather than being orphaned behind a bash wrapper.

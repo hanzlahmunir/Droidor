@@ -25,6 +25,23 @@ RUN pip install --no-cache-dir -r requirements.txt \
     && apt-get purge -y --auto-remove gcc \
     && rm -rf /var/lib/apt/lists/*
 
+# Required by the UI, and NOT redundant with WORKDIR.
+#
+# `streamlit run app/ui.py` puts the SCRIPT's directory (/app/app) on
+# sys.path, not the working directory -- so `from app.config import Config`
+# raised "ModuleNotFoundError: No module named 'app'", while the identical
+# import worked fine from `python -c` in the same container. That difference
+# is why the CLI, the tests and my own import checks all passed while the UI
+# was broken. See docs/REVIEW_NOTES.md.
+#
+# Set here rather than in entrypoint.sh so `docker run` and `compose exec`
+# behave the same as `compose up`.
+#
+# Placed AFTER the pip layer on purpose: an ENV line above it invalidates the
+# dependency cache, so every edit to it triggers a full reinstall of lxml,
+# trafilatura and streamlit. Down here it costs nothing to change.
+ENV PYTHONPATH=/app
+
 COPY . .
 
 # Strip Windows carriage returns before chmod. A CRLF entrypoint makes the

@@ -7,8 +7,60 @@ during the build, not a preference.
 
 ## Bugs found by running it, not by reading it
 
-These four are the most useful part of this document: each was invisible in
-code review and only appeared when the crawler was pointed at real websites.
+These five are the most useful part of this document: each was invisible in
+code review and only appeared when the thing was actually used.
+
+### 0. The UI shipped broken, and every automated check said it was fine
+
+**Symptom.** Opening <http://localhost:8501> showed
+`ModuleNotFoundError: No module named 'app'` at `app/ui.py` line 23.
+
+**Cause.** `streamlit run app/ui.py` prepends the **script's** directory
+(`/app/app`) to `sys.path`, not the working directory. So
+`from app.config import Config` resolved against `/app/app`, where there is
+no `app` package. `PYTHONPATH` was unset, so nothing put `/app` back.
+
+**Why nothing caught it — the part worth reading.** Every check I ran was
+green, and each was green for a *different* reason that masked this one:
+
+| Check | Result | Why it missed the bug |
+| --- | --- | --- |
+| 98 unit tests | pass | `pytest.ini` sets `pythonpath = .` |
+| CLI (`crawler seed`) | works | run as `python -m app.cli`, so cwd is on `sys.path` |
+| `exec ui python -c "import app.config"` | works | cwd is `/app`, not `/app/app` |
+| `curl localhost:8501` | HTTP 200 | Streamlit *started* fine |
+| container health | healthy | the process is alive and serving |
+| "exercise all UI code paths" | pass | I imported `app.ui`'s dependencies **in the wrong context** |
+
+That last row is the real lesson. I ran the UI's imports and DataFrame
+construction inside the container and declared "ALL UI PATHS OK" — but from
+`/app`, which is not where Streamlit runs them from. The check looked
+thorough and tested the wrong thing.
+
+Streamlit compounds it by rendering the traceback **into the page** rather
+than exiting, so the container stays healthy and the logs stay clean. The
+only way to see the failure was to open the page in a browser, which no
+automated check did.
+
+**Fix.** Three layers, because one was clearly not enough:
+1. `ENV PYTHONPATH=/app` in the Dockerfile — the actual fix.
+2. `entrypoint.sh` verifies `import app.ui` **from `/app/app`**, reproducing
+   Streamlit's import context, and refuses to start on failure. A broken
+   image now dies loudly instead of serving a broken page.
+3. `tests/test_ui_imports.py` runs the import in a **subprocess** with a
+   controlled cwd and `PYTHONPATH` — in-process assertions cannot catch this,
+   because pytest has already fixed `sys.path` by the time they run. One test
+   asserts the bug still reproduces without `PYTHONPATH`, so the Dockerfile
+   line cannot be deleted as redundant.
+
+**Generalisable rule:** for a web UI, "the process started" and "HTTP 200"
+are not evidence it works. Something has to render the page. And when
+verifying an entry point, reproduce *its* execution context — cwd, argv,
+environment — not a convenient approximation of it.
+
+---
+
+The four below were found by pointing the crawler at real websites.
 
 ### 1. The bot-wall detector discarded every article on a Cloudflare site
 
