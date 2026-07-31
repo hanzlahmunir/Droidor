@@ -102,6 +102,13 @@ class CrawlRecord(Base):
     # SHA-256 of the normalised text: the exact-duplicate key.
     content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
+    # Structure retained by extraction. Recorded because "is the text clean"
+    # and "did the article keep its shape" are different questions, and the
+    # second was invisible until a reviewer opened a stored article and found
+    # the headings gone. A long article with zero headings is worth flagging.
+    headings: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    code_blocks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
     # ---------- publish date ----------
     published_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

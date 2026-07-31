@@ -10,6 +10,67 @@ during the build, not a preference.
 These five are the most useful part of this document: each was invisible in
 code review and only appeared when the thing was actually used.
 
+### -1. Stored articles had lost their headings and code blocks
+
+**Symptom.** A reviewer opened a stored Julia Evans post and reported: "the
+headings are missing, only the paragraphs are there, and the indentation is
+not proper."
+
+**Four independent causes**, each reproduced in isolation before being fixed:
+
+1. **`favor_precision=True` was discarding every heading.** My flag, chosen
+   to stop navigation bleeding in. Measured on the reported page: heading
+   count 10 → **0**. Checked what it was actually protecting against across
+   three sites — turning it off introduced no nav, footer, share buttons or
+   cookie notices. It was paying a certain cost for a benefit that never
+   materialised.
+
+2. **Plain-text output dropped code fences.** `output_format="markdown"`
+   restored 8 fenced blocks on that page.
+
+3. **Headings wrapped in a self-link came out empty.** Static-site generators
+   emit `<h3 id="x"><a href="#x">text</a></h3>`; with `include_links=False`
+   the text is discarded and the heading renders as bare `###`. Turning
+   `include_links` **on** is worse — it emptied 9 of 10 headings instead of 1.
+   Fixed upstream of trafilatura by unwrapping inline tags inside headings.
+
+4. **Inline `<code>` in a heading dropped the entire heading.**
+   `<h3><code>querystring</code> is cool</h3>` produced *nothing* — not an
+   empty heading, no heading at all. Confirmed with a three-case fixture:
+   plain `h3` survives, `h3` containing `<code>` vanishes, `h3` that is only
+   `<code>` vanishes. This is why one whole section was missing.
+
+5. **Sentences were shredded by inline code.** trafilatura ends a paragraph
+   after every inline span, so one sentence arrived as three paragraphs.
+   Verified to originate in trafilatura, not our code, by inspecting its raw
+   output. Repaired conservatively: a blank line is removed only when the
+   line before ends mid-sentence **and** the line after starts with lowercase
+   or continuing punctuation. Headings, bullets, quotes and fences are never
+   joined.
+
+6. **`normalise_text` stripped every line**, flattening nested lists and
+   reindenting code. Correct for plain text, destructive for Markdown. Now
+   only trailing whitespace is stripped, and lines inside `` ``` `` fences are
+   left untouched.
+
+**A near-miss worth recording.** The first version of the sentence-rejoin rule
+never fired, because its "unfinished line" pattern treated a trailing backtick
+as sentence-ending punctuation — and the exact input it was written for ends
+in `` `querystring` ``. Caught by testing the predicate directly rather than
+eyeballing the output; the rendered text looked *slightly* better for
+unrelated reasons, which would have been easy to accept.
+
+**Result:** 109 headings and 108 code fences retained across the corpus, up
+from zero. One extra article now passes the quality gate (20 stored, was 19).
+
+**What was NOT fixed, and why.** All five `research.google` articles still
+have zero headings. Their markup puts headings in `div.component-intro` and
+the article body in `div.blog-summary` — different DOM branches — so an
+extractor that selects one content container cannot associate them. A
+site-specific rule would fix it and would rot at their next redesign, so it is
+**reported in REPORT.md** as a named limitation instead. The report now counts
+structure retention and lists long articles that came out with no headings.
+
 ### 0. The UI shipped broken, and every automated check said it was fine
 
 **Symptom.** Opening <http://localhost:8501> showed
@@ -43,6 +104,7 @@ only way to see the failure was to open the page in a browser, which no
 automated check did.
 
 **Fix.** Three layers, because one was clearly not enough:
+
 1. `ENV PYTHONPATH=/app` in the Dockerfile — the actual fix.
 2. `entrypoint.sh` verifies `import app.ui` **from `/app/app`**, reproducing
    Streamlit's import context, and refuses to start on failure. A broken

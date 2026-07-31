@@ -72,6 +72,26 @@ example.com/post#section-2
 - A real, contactable **User-Agent**.
 - Nothing behind a login is fetched — detected and reported, never bypassed.
 
+### Structure is preserved, not just text
+
+Extraction emits **Markdown**, so an article keeps the shape its author gave
+it — headings stay headings, code stays in fenced blocks, nested lists keep
+their nesting. Across the recorded run that is 109 headings and 54 code
+blocks retained.
+
+This was originally wrong: the first version stored undifferentiated
+paragraphs with every heading and code fence dropped. Five separate causes,
+all documented in [docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md).
+
+The Browse tab shows each article two ways — **Formatted** (rendered, how a
+reader sees it) and **Raw stored text** (exactly what is in the database, for
+verification).
+
+One known limitation, reported rather than hidden: `research.google` articles
+come out with no headings, because that site puts headings and body text in
+different DOM branches. The report counts structure retention and lists any
+long article that lost its headings.
+
 ### Blocked content
 
 Login walls, paywalls and bot challenges are detected and reported with a
@@ -90,12 +110,13 @@ Results from the run recorded in this repo (25 URLs, 5 feeds):
 | Metric | Value |
 | --- | --- |
 | URLs processed | 25 |
-| Articles stored | 19 (76%) |
+| Articles stored | 20 (80%) |
 | Duplicates | 0 (0%) |
-| Extraction failed or junk | 1 (4%) |
-| Missing/unparseable date | 0 of 19 stored (0%) |
-| Mean / median length | 8,031 / 8,941 chars |
+| Extraction failed or junk | 0 (0%) |
+| Missing/unparseable date | 0 of 20 stored (0%) |
+| Mean / median length | 7,727 / 8,787 chars |
 | Blocked (bot wall) | 5 (20%) |
+| Headings / code blocks kept | 109 / 54 |
 
 Duplicates are reported by **detection layer**, not as one blended number:
 

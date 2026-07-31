@@ -191,7 +191,24 @@ with tab_browse:
             st.caption(f"Published: {(document.get('published_at') or '—')[:10]}")
             st.caption(f"Stored: {document['created_at'][:10]}")
 
-        st.text_area("Cleaned text", document["text"], height=420)
+        # Two views, because they answer different questions.
+        #
+        # "Formatted" renders the stored Markdown, which is how a client or
+        # end user judges whether the article survived cleaning intact --
+        # headings as headings, code as code blocks.
+        #
+        # "Raw" shows exactly what is in the database, which is what a
+        # reviewer needs: the formatted view could look perfect while the
+        # stored text contained something else entirely.
+        formatted_tab, raw_tab = st.tabs(["Formatted", "Raw stored text"])
+        with formatted_tab:
+            st.markdown(document["text"])
+        with raw_tab:
+            st.text_area(
+                "Exactly what is stored in the documents table",
+                document["text"],
+                height=420,
+            )
 
 # ---------------------------------------------------------------------------
 # Crawl

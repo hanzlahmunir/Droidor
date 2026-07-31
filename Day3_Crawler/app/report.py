@@ -56,6 +56,7 @@ class Report:
     extraction: dict = field(default_factory=dict)
     party_dates: dict = field(default_factory=dict)
     lengths: dict = field(default_factory=dict)
+    structure: dict = field(default_factory=dict)
     shortest: list = field(default_factory=list)
     blocked: dict = field(default_factory=dict)
     refused: dict = field(default_factory=dict)
@@ -259,6 +260,31 @@ def build(session: Session, config: Config) -> Report:
         "mean_words": round(mean(words)) if words else 0,
     }
 
+    # ---- structure retention ----
+    # Added after a reviewer opened a stored article and found its headings
+    # missing. "Is the text clean" and "did the article keep its shape" are
+    # different questions, and only the first was being measured.
+    with_headings = [r for r in stored_records if (r.headings or 0) > 0]
+    with_code = [r for r in stored_records if (r.code_blocks or 0) > 0]
+    # A long article with no headings is the suspicious case; a 600-character
+    # link-blog post legitimately has none.
+    long_without_headings = [
+        r for r in stored_records
+        if (r.headings or 0) == 0 and (r.text_chars or 0) >= 4000
+    ]
+
+    report.structure = {
+        "articles_with_headings": len(with_headings),
+        "articles_with_headings_pct": _pct(len(with_headings), stored_total),
+        "total_headings": sum(r.headings or 0 for r in stored_records),
+        "articles_with_code_blocks": len(with_code),
+        "total_code_blocks": sum(r.code_blocks or 0 for r in stored_records),
+        "long_articles_without_headings": [
+            {"url": r.canonical_url, "chars": r.text_chars, "source": r.host}
+            for r in sorted(long_without_headings, key=lambda r: -(r.text_chars or 0))
+        ],
+    }
+
     # ---- the 5 shortest, quoted ----
     # The task predicts these are usually garbage, so they are quoted rather
     # than merely listed: a reviewer can judge for themselves.
@@ -325,6 +351,7 @@ def to_json(report: Report) -> str:
         "extraction": report.extraction,
         "publish_dates": report.party_dates,
         "lengths": report.lengths,
+        "structure_retention": report.structure,
         "five_shortest": report.shortest,
         "blocked": report.blocked,
         "refused_before_fetch": report.refused,
@@ -526,6 +553,47 @@ def to_markdown(report: Report, config: Config) -> str:
     add("")
     add(f"Mean words per article: {report.lengths['mean_words']}.")
     add("")
+
+    # ---- structure ----
+    structure = report.structure
+    add("## Structure retained")
+    add("")
+    add(
+        "Clean text is not the whole job: an article stripped down to "
+        "undifferentiated paragraphs has lost something too. Extraction "
+        "keeps Markdown, so headings and code blocks survive."
+    )
+    add("")
+    add("| Metric | Value |")
+    add("| --- | ---: |")
+    add(
+        f"| Articles with headings | {structure['articles_with_headings']} "
+        f"of {dates_data['stored_total']} ({structure['articles_with_headings_pct']}%) |"
+    )
+    add(f"| Total headings kept | {structure['total_headings']} |")
+    add(f"| Articles with code blocks | {structure['articles_with_code_blocks']} |")
+    add(f"| Total code blocks kept | {structure['total_code_blocks']} |")
+    add("")
+
+    if structure["long_articles_without_headings"]:
+        add(
+            "Long articles (4,000+ chars) that came out with **no headings** — "
+            "these are the ones worth inspecting:"
+        )
+        add("")
+        add("| Article | Chars |")
+        add("| --- | ---: |")
+        for item in structure["long_articles_without_headings"]:
+            add(f"| {item['url']} | {item['chars']} |")
+        add("")
+        add(
+            "Known cause for `research.google`: its headings sit in a "
+            "different DOM branch (`div.component-intro`) from its article "
+            "body (`div.blog-summary`), so an extractor that selects one "
+            "content container cannot associate them. Reported rather than "
+            "worked around with a site-specific rule."
+        )
+        add("")
 
     # ---- 5 shortest ----
     add(f"## The {len(report.shortest)} shortest articles")

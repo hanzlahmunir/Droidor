@@ -10,6 +10,7 @@ from app.pipeline.extract import (
     compute_link_density,
     extract,
     normalise_text,
+    strip_boilerplate_lines,
     strip_trailing_link_list,
 )
 
@@ -251,6 +252,159 @@ def test_link_density_is_scoped_to_kept_text():
     kept_only = compute_link_density(html, keep_text=article_text)
     assert whole_page > kept_only
     assert kept_only < 0.1
+
+
+# ---------------------------------------------------------------------------
+# Structure preservation.
+#
+# Reported by the user reviewing a stored Julia Evans post: "the headings are
+# missing, only the paragraphs are there, and the indentation is not proper."
+# Four separate defects were behind that, each reproduced in isolation before
+# being fixed. These tests pin all four.
+# ---------------------------------------------------------------------------
+
+HEADED_ARTICLE = (
+    "<html><body><article><h1>Main title</h1>"
+    + "<p>Opening paragraph with enough text to clear the length floor. </p>" * 6
+    + "<h3>First section</h3>"
+    + "<p>Section body text that also needs to be reasonably long. </p>" * 6
+    + "<pre><code>def hello():\n    return 1</code></pre>"
+    + "<h3>Second section</h3>"
+    + "<p>More section body text to keep the document above the floor. </p>" * 6
+    + "</article></body></html>"
+)
+
+
+def test_headings_survive_extraction(config):
+    """Defect 1: `favor_precision=True` was silently dropping every heading.
+
+    Measured on the reported page: it took the heading count from 10 to 0.
+    Turning it off restored them and introduced no boilerplate on any of the
+    three sites checked.
+    """
+    result = extract(HEADED_ARTICLE, "https://example.com/x", config)
+    assert result.ok, f"{result.failed_rules} {result.detail}"
+    headings = [l for l in result.text.splitlines() if l.lstrip().startswith("#")]
+    assert len(headings) >= 3, f"expected the headings to survive, got {headings}"
+    assert any("First section" in h for h in headings)
+
+
+def test_code_blocks_survive_extraction(config):
+    """Defect 2: plain-text output dropped code fences entirely."""
+    result = extract(HEADED_ARTICLE, "https://example.com/x", config)
+    assert "```" in result.text, "code fences were lost"
+    assert "def hello()" in result.text
+
+
+def test_heading_wrapped_in_a_self_link_keeps_its_text(config):
+    """Defect 3a: static-site generators wrap headings in a self-link.
+
+    <h3 id="x"><a href="#x">text</a></h3> came out as a bare "###" with no
+    text, because include_links=False discards the anchor's content.
+    """
+    html = (
+        '<html><body><article><h3 id="s"><a href="#s">Linked heading</a></h3>'
+        + "<p>Body text long enough to pass the length floor here. </p>" * 10
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    assert "Linked heading" in result.text
+
+
+def test_heading_containing_inline_code_is_not_dropped(config):
+    """Defect 3b: inline <code> in a heading dropped the WHOLE heading.
+
+    `<h3><code>querystring</code> is cool</h3>` produced nothing at all --
+    not an empty heading, no heading. That is why one section vanished from
+    the reported article. Confirmed with a minimal fixture: a plain h3
+    survives, an h3 containing <code> disappears.
+    """
+    html = (
+        "<html><body><article><h3><code>querystring</code> is cool</h3>"
+        + "<p>Body text long enough to pass the length floor here. </p>" * 10
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    assert "querystring is cool" in result.text, (
+        "a heading containing inline <code> was dropped entirely"
+    )
+
+
+def test_no_heading_is_emitted_empty(config):
+    """A heading marker with no text is worse than no heading at all."""
+    html = (
+        '<html><body><article><h3 id="s"><a href="#s"><code>fn</code> works</a></h3>'
+        + "<p>Body text long enough to pass the length floor here. </p>" * 10
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    for line in result.text.splitlines():
+        if line.lstrip().startswith("#"):
+            assert line.strip("# ").strip(), f"empty heading emitted: {line!r}"
+
+
+def test_sentences_split_by_inline_code_are_rejoined():
+    """Defect 4: trafilatura breaks a paragraph after every inline code span.
+
+    One sentence arrived as three paragraphs. Verified to come from
+    trafilatura itself, not our post-processing.
+    """
+    broken = "my favourite filter is `querystring`\n\n: in this site sometimes"
+    assert "\n\n" not in normalise_text(broken)
+
+
+def test_genuine_paragraph_breaks_are_preserved():
+    """The rejoin must be conservative or it destroys real structure."""
+    for text in (
+        "End of a thought.\n\nA new paragraph starts here.",
+        "introducing a list:\n\n- first item",
+        "some prose here\n\n### A heading",
+        "and then this.\n\n```\ncode\n```",
+    ):
+        assert "\n\n" in normalise_text(text), f"wrongly joined: {text!r}"
+
+
+def test_list_indentation_is_preserved():
+    """Defect 5: normalise_text stripped every line, flattening nested lists.
+
+    Correct for plain text, destructive for Markdown -- nested bullets lose
+    their nesting and indented blocks stop being blocks.
+    """
+    nested = "- top level\n    - nested item\n        - deeper still"
+    out = normalise_text(nested)
+    assert "    - nested item" in out
+    assert "        - deeper still" in out
+
+
+def test_code_block_contents_are_not_reflowed():
+    """Indentation inside a fence is semantic in most languages."""
+    code = "```\ndef f():\n    if x:\n        return 1\n```"
+    out = normalise_text(code)
+    assert "    if x:" in out
+    assert "        return 1" in out
+
+
+def test_boilerplate_is_still_stripped_when_markdown_formatted():
+    """Boilerplate now arrives as '### Share this', not bare 'Share this'.
+
+    The patterns anchor on line start, so without allowing for Markdown
+    prefixes they would silently stop matching once output became Markdown.
+    """
+    text = "Real article text.\n\n### Share this\n\n- Subscribe to our newsletter"
+    cleaned, removed = strip_boilerplate_lines(text)
+    assert removed == 2, f"expected both stripped, removed={removed}"
+    assert "Real article text." in cleaned
+
+
+def test_boilerplate_inside_a_code_block_is_kept():
+    """A code sample may legitimately contain 'advertisement' or 'loading'.
+
+    Deleting a line from someone's code block corrupts it invisibly.
+    """
+    text = "Intro.\n\n```\nadvertisement = None\nloading...\n```"
+    cleaned, removed = strip_boilerplate_lines(text)
+    assert removed == 0
+    assert "advertisement = None" in cleaned
 
 
 def test_malformed_html_does_not_raise(config):

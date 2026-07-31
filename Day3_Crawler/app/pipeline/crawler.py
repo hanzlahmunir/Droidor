@@ -299,6 +299,8 @@ class Pipeline:
 
         record.text_chars = extraction.chars
         record.text_words = extraction.words
+        record.headings = extraction.headings
+        record.code_blocks = extraction.code_blocks
         record.link_density = extraction.link_density
         record.secondary_text_chars = extraction.secondary_chars
         record.extractor_agreement = extraction.agreement
