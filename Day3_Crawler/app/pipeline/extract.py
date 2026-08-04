@@ -1,24 +1,38 @@
 """Article extraction and quality scoring.
 
-TWO EXTRACTORS, ON PURPOSE.
+TWO JOBS, TWO TOOLS -- and separating them is the central design decision.
 
-trafilatura is the primary. It is the current state of the art for
-boilerplate removal and is what extraction benchmarks measure against.
-Hand-written BeautifulSoup rules ("delete <nav>, delete .sidebar") were
-rejected: they are per-site, and they rot the first time a site is
-redesigned.
+    FINDING the article   -> trafilatura
+    RENDERING it          -> markdownify, over the ORIGINAL DOM
 
-readability-lxml runs SECOND on the same HTML, using a genuinely different
-algorithm (text-density scoring rather than trafilatura's DOM heuristics).
-We do not use its output. We use its LENGTH, as a cross-check.
+WHY THEY ARE SPLIT. The first version used trafilatura for both, and its
+Markdown converter is lossy in ways that cost real content. Measured on one
+reported page: 0 list markers where the source had 41, code blocks with their
+indentation stripped, and -- worst -- text REORDERED. `Run <code>/cost</code>.
+Find out where...` came out as `**Run**Find out where...\\`/cost\\`.`, with the
+code span moved to the end of the sentence.
 
-The reason is that the task asks for "% of pages where extraction failed or
+Five repair functions were written to patch that damage and were then deleted,
+because the approach has a ceiling: a repair has to LOCATE the damaged text,
+but the damage reorders it, so the matcher cannot find what it is meant to
+fix. Each new site with a different nesting pattern broke it again. That is
+the opposite of an automated system.
+
+Rendering from the DOM is correct BY CONSTRUCTION instead. <ul> is a list,
+<li> is an item, <pre> preserves whitespace, <strong> is bold, and nesting
+order is reading order. There is no damage to repair.
+
+WHY TRAFILATURA IS STILL HERE. Finding which element holds the article is the
+genuinely hard part, and it is what trafilatura is best in class at (mean F1
+0.883 across eight datasets). A naive `find('article') or find('main')` failed
+on 3 of 10 real pages in this corpus. So trafilatura still decides WHAT the
+article is; it just no longer decides how it is written down.
+
+readability-lxml runs third, as a CROSS-CHECK only. Its output is discarded;
+its LENGTH is kept. The task asks for "% of pages where extraction failed or
 returned junk" -- a real number. With one extractor there is nothing to
-compare against, so "junk" could only be asserted. With two independent
-algorithms, sharp disagreement on length is EVIDENCE: if one returns 4,000
-characters and the other 300, at least one of them latched onto the wrong
-subtree, and the result should not be trusted. That converts a guess into a
-measurement, which is the whole point of the day.
+compare against, so junk could only be asserted. Two independent algorithms
+disagreeing sharply is evidence.
 
 THE QUALITY RULES ARE EXPLICIT AND NAMED. Each rejection records which rule
 fired, so "% junk" decomposes by cause instead of being one opaque figure.
@@ -29,9 +43,11 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field
+from urllib.parse import urljoin
 
 import trafilatura
 from bs4 import BeautifulSoup
+from markdownify import MarkdownConverter
 from readability import Document as ReadabilityDocument
 
 from app.config import Config
@@ -103,6 +119,10 @@ class ExtractionResult:
     `div.component-intro` while the body sits in `div.blog-summary`)."""
     code_blocks: int = 0
     """Fenced code blocks retained."""
+    list_items: int = 0
+    """Bullet and numbered list items retained. Tracked because a reviewer
+    counting three bullets in the source and finding one in the output is how
+    the biggest extraction bug in this project was found."""
 
     # --- quality signals, all stored so the report can show its working ---
     link_density: float | None = None
@@ -116,96 +136,6 @@ class ExtractionResult:
 
     detail: str | None = None
     """Human-readable summary of why it was rejected."""
-
-
-# A line that clearly does NOT start a new paragraph: it continues the
-# previous one. Lowercase letter, or punctuation that can never open a
-# sentence. This is the signal used to undo trafilatura's spurious breaks.
-_CONTINUATION_START_RE = re.compile(r"^[a-z,;:.!?)\]}]")
-
-# A line that clearly does not END a sentence: it lacks terminal punctuation.
-#
-# The backtick is NOT in this exclusion list, and that omission is the whole
-# point. The exact case being fixed is a line ending in an inline code span:
-#
-#     I think my favourite template filter is `querystring`
-#
-# A closing backtick marks the end of a code span, not the end of a sentence,
-# so such a line IS unfinished. The first version of this pattern treated ` as
-# terminal punctuation, which made the rule silently never fire on the very
-# input it was written for -- caught by testing the predicate directly rather
-# than eyeballing the output.
-_UNFINISHED_END_RE = re.compile(r"[^.!?;\"')\]}’”]$")
-
-# Structural Markdown lines that must never be joined to a neighbour.
-_STRUCTURAL_LINE_RE = re.compile(r"^\s*(#{1,6}\s|[-*+]\s|\d+[.)]\s|>|\||```)")
-
-
-def _rejoin_split_sentences(text: str) -> str:
-    """Undo paragraph breaks that trafilatura inserts around inline code.
-
-    THE BUG THIS FIXES. In markdown mode trafilatura terminates a paragraph
-    after every inline `code` span, so one sentence is shredded into three:
-
-        my favourite template filter is `querystring`
-        <blank>
-        : in this site sometimes we use filters like `?date=2026-06-01`
-        <blank>
-        to decide what is displayed.
-
-    Verified to come from trafilatura itself, not from our post-processing,
-    by inspecting its raw output before anything else touches it.
-
-    THE RULE. A blank line is removed only when the text around it proves it
-    is spurious: the line before ends mid-sentence (no closing punctuation)
-    AND the line after begins with a lowercase letter or punctuation that
-    cannot start a sentence. Both conditions must hold.
-
-    Deliberately conservative. A genuine paragraph break has a capital letter
-    or a bullet after it and a full stop before it, so it fails the test and
-    survives. Headings, list items, quotes and code fences are excluded
-    outright -- joining those would corrupt the structure this change exists
-    to preserve.
-    """
-    if "\n\n" not in text:
-        return text
-
-    blocks = text.split("\n\n")
-    merged: list[str] = [blocks[0]] if blocks else []
-
-    for block in blocks[1:]:
-        previous = merged[-1] if merged else ""
-        prev_last_line = previous.rstrip().split("\n")[-1] if previous else ""
-        next_first_line = block.lstrip().split("\n")[0] if block.strip() else ""
-
-        # A block that CONTAINS a list item anywhere is off limits, not just
-        # one that starts with a marker. This is the bug that turned a
-        # three-bullet list into one: trafilatura had already split the items
-        # into fragments, so the marker sat on the first fragment and the
-        # continuation checks happily glued the rest onto it.
-        prev_has_item = any(
-            _STRUCTURAL_LINE_RE.match(l) for l in previous.split("\n")
-        )
-        next_has_item = any(
-            _STRUCTURAL_LINE_RE.match(l) for l in block.split("\n")
-        )
-
-        joinable = (
-            prev_last_line
-            and next_first_line
-            and not prev_has_item
-            and not next_has_item
-            and _UNFINISHED_END_RE.search(prev_last_line)
-            and _CONTINUATION_START_RE.match(next_first_line)
-        )
-
-        if joinable:
-            # Single space, not a newline: these were one sentence.
-            merged[-1] = previous.rstrip() + " " + block.lstrip()
-        else:
-            merged.append(block)
-
-    return "\n\n".join(merged)
 
 
 def normalise_text(text: str) -> str:
@@ -249,7 +179,6 @@ def normalise_text(text: str) -> str:
         out.append((indent + _WHITESPACE_RE.sub(" ", stripped)).rstrip())
 
     text = "\n".join(out)
-    text = _rejoin_split_sentences(text)
     text = _BLANKLINES_RE.sub("\n\n", text)
     return text.strip()
 
@@ -418,460 +347,226 @@ def compute_link_density(html: str, keep_text: str | None = None) -> float | Non
 
 # Inline tags that must be unwrapped from inside a heading. Each was verified
 # to cause trafilatura to drop the heading or its text -- see the docstring.
-_HEADING_INLINE_TAGS = ("a", "code", "span", "em", "strong", "b", "i", "tt", "kbd", "samp")
+# Tags removed from the article subtree before rendering. These are chrome
+# that can legitimately sit INSIDE the container trafilatura picks, and none
+# of them is ever article prose.
+_CHROME_TAGS = (
+    "script", "style", "noscript", "nav", "footer", "aside",
+    "form", "iframe", "svg", "button", "template",
+)
+
+# How much of trafilatura's text the candidate element must contain before it
+# is considered a match. Below 1.0 because the two disagree slightly at the
+# edges -- trafilatura trims a trailing byline the DOM node still holds.
+_FINGERPRINT_COVERAGE = 0.80
+
+# Reject a candidate carrying far more text than trafilatura kept: that means
+# we climbed too far up the tree and grabbed the page, not the article.
+# Measured across the corpus: median ratio 1.00, worst 1.46, so 2.0 is a
+# generous ceiling that still catches a genuine mis-selection.
+_FINGERPRINT_MAX_RATIO = 2.0
 
 
-def unwrap_heading_anchors(html: str) -> str:
-    """Flatten inline tags inside headings to their bare text.
+class _ArticleConverter(MarkdownConverter):
+    """markdownify with the conventions this project stores in.
 
-    TWO SEPARATE FAILURES, both found on one Julia Evans post and both
-    reproduced in isolation before fixing:
-
-    1. SELF-LINKING HEADINGS. Static-site generators render headings as
-       self-links so the section is clickable:
-
-           <h3 id="why-learn"><a href="#why-learn">why learn ...</a></h3>
-
-       With include_links=False trafilatura drops the anchor text and emits
-       a heading with no content -- literally "###".
-
-       Turning include_links ON is WORSE, not better: measured on the same
-       page it empties NINE of the ten headings instead of one, because each
-       becomes a Markdown link whose text is then lost.
-
-    2. INLINE <code> IN A HEADING. This one drops the WHOLE heading, not just
-       the code:
-
-           <h3><code>querystring</code> is cool</h3>   ->  (nothing at all)
-
-       Confirmed with a minimal fixture: a plain <h3> survives, an <h3>
-       containing <code> vanishes entirely, and an <h3> that is only <code>
-       vanishes too. That is why "querystring is cool" was missing from the
-       stored article rather than merely unformatted.
-
-    Neither is fixable through trafilatura's options, so the tags are removed
-    before it sees the document. Unwrapping preserves the text and discards
-    only presentational markup, which a plain-text article does not need.
-
-    ONLY HEADINGS ARE TOUCHED. Links, code and emphasis in body prose are
-    left exactly as they are, so this cannot change how the article body is
-    extracted -- it only rescues headings that would otherwise disappear.
+    Subclassed rather than configured because two behaviours needed
+    overriding outright, both found by comparing output against real pages.
     """
-    if not html or "<h" not in html.lower():
-        return html
-    try:
-        soup = BeautifulSoup(html, "lxml")
-        changed = False
-        for heading in soup.find_all(["h1", "h2", "h3", "h4", "h5", "h6"]):
-            for tag in heading.find_all(_HEADING_INLINE_TAGS):
-                # unwrap() replaces the tag with its children, so the text
-                # survives and the wrapper disappears.
-                tag.unwrap()
-                changed = True
-        return str(soup) if changed else html
-    except Exception:  # noqa: BLE001 - malformed HTML must not kill the run
-        return html
 
+    # Signatures match markdownify 0.14's convert_<tag>(self, el, text,
+    # convert_as_inline). Pinned in requirements.txt for exactly this reason:
+    # the first attempt used a newer release's `parent_tags` keyword and every
+    # page raised TypeError -- caught immediately because the article rendered
+    # with zero headings and zero links.
 
-def restore_code_indentation(text: str, html: str) -> tuple[str, int]:
-    """Put the original indentation back inside fenced code blocks.
+    def convert_a(self, el, text, convert_as_inline):
+        """Drop heading self-anchors; keep real links.
 
-    THE BUG. trafilatura strips leading whitespace from every line of a code
-    block. Verified by comparing the source HTML with its output on a real
-    page -- the source has
+        Static-site generators wrap headings in a link to their own id
+        (`<h3 id="x"><a href="#x">text</a></h3>`). Rendering that as a link
+        gives `### [text](#x)`, which is noise -- the anchor points at the
+        heading the reader is already looking at.
+        """
+        href = (el.get("href") or "").strip()
+        if href.startswith("#"):
+            return text
+        return super().convert_a(el, text, convert_as_inline)
 
-        class EventQuerySet(...):
-            def approved(self):
-                return self.filter(...)
+    def convert_img(self, el, text, convert_as_inline):
+        """Images are dropped: this pipeline stores article TEXT.
 
-    and trafilatura emits all three lines flush left. For Python that is not
-    a cosmetic loss: the stored snippet is syntactically invalid and would
-    not run if a reader copied it.
-
-    THE FIX. The raw HTML is already in hand, and <pre> preserves whitespace
-    by definition, so the correct text is available -- take it from the DOM
-    instead of trusting the converter.
-
-    MATCHING IS BY FIRST NON-BLANK LINE, deliberately. Matching on the whole
-    block cannot work: the flattened and original forms differ by exactly the
-    whitespace being restored, so they never compare equal. The first line of
-    a code block is almost always distinctive within one article, and a
-    length sanity-check guards the rare collision -- a candidate whose line
-    count differs wildly from the block it would replace is rejected rather
-    than substituted.
-
-    Blocks that cannot be matched are LEFT ALONE. A wrong replacement is far
-    worse than a missing indent, so the failure mode is "no change".
-    """
-    if "```" not in text or "<pre" not in html.lower():
-        return text, 0
-
-    try:
-        soup = BeautifulSoup(html, "lxml")
-    except Exception:  # noqa: BLE001
-        return text, 0
-
-    # Map first-line -> full original text, for every <pre> on the page.
-    originals: dict[str, list[str]] = {}
-    for pre in soup.find_all("pre"):
-        # get_text() on <pre> keeps newlines and leading spaces intact.
-        original = pre.get_text()
-        if not original.strip():
-            continue
-        first = next((l.strip() for l in original.splitlines() if l.strip()), "")
-        if first:
-            originals.setdefault(first, []).append(original.strip("\n"))
-
-    if not originals:
-        return text, 0
-
-    out: list[str] = []
-    restored = 0
-    lines = text.split("\n")
-    index = 0
-
-    while index < len(lines):
-        line = lines[index]
-        if not line.lstrip().startswith("```"):
-            out.append(line)
-            index += 1
-            continue
-
-        # Collect the fenced block.
-        fence_open = line
-        body: list[str] = []
-        index += 1
-        while index < len(lines) and not lines[index].lstrip().startswith("```"):
-            body.append(lines[index])
-            index += 1
-        fence_close = lines[index] if index < len(lines) else "```"
-        index += 1
-
-        first = next((l.strip() for l in body if l.strip()), "")
-        candidates = originals.get(first)
-        replacement = None
-        if candidates:
-            for candidate in candidates:
-                # Sanity check: the original may legitimately have MORE lines
-                # (trafilatura drops blank lines between methods), but a wild
-                # mismatch means we matched the wrong block.
-                if len(candidate.splitlines()) >= len(body) and (
-                    len(candidate.splitlines()) <= len(body) * 3 + 4
-                ):
-                    replacement = candidate
-                    break
-
-        if replacement is not None and replacement.splitlines() != body:
-            out.append(fence_open)
-            out.extend(replacement.splitlines())
-            out.append(fence_close)
-            restored += 1
-        else:
-            out.append(fence_open)
-            out.extend(body)
-            out.append(fence_close)
-
-    return "\n".join(out), restored
-
-
-def _inline_markdown(node) -> str:
-    """Render a DOM node's children to inline Markdown.
-
-    Handles the four inline constructs that carry meaning in an article:
-    code, links, bold, italic. Everything else contributes its text.
-    Deliberately small -- this renders the inside of ONE list item, not a
-    general HTML-to-Markdown converter.
-    """
-    from bs4 import NavigableString, Tag
-
-    parts: list[str] = []
-    for child in node.children:
-        if isinstance(child, NavigableString):
-            parts.append(str(child))
-        elif isinstance(child, Tag):
-            inner = _inline_markdown(child)
-            name = child.name.lower()
-            if name == "code":
-                # Only fence it if it is not already inside a code span.
-                parts.append(f"`{inner.strip()}`" if inner.strip() else "")
-            elif name == "a":
-                href = (child.get("href") or "").strip()
-                parts.append(f"[{inner.strip()}]({href})" if href and inner.strip() else inner)
-            elif name in ("strong", "b"):
-                parts.append(f"**{inner.strip()}**" if inner.strip() else "")
-            elif name in ("em", "i"):
-                parts.append(f"*{inner.strip()}*" if inner.strip() else "")
-            elif name == "br":
-                parts.append(" ")
-            else:
-                parts.append(inner)
-    # Collapse the whitespace the source HTML used for indentation.
-    return " ".join("".join(parts).split())
+        Alt text is kept where present, since an alt attribute is often a
+        real sentence (a chart caption, a diagram description).
+        """
+        alt = (el.get("alt") or "").strip()
+        return f"{alt} " if alt else ""
 
 
 def _match_key(value: str) -> str:
-    """Reduce text to a form that compares equal across converters.
+    """Reduce text to a comparison key: lowercase alphanumerics only.
 
-    Both sides of a list match are the "same" text rendered by different
-    code: BeautifulSoup's get_text(' ') and trafilatura's Markdown. They
-    disagree on spacing around punctuation and on the backticks, asterisks
-    and brackets the converter inserts.
-
-    Two real mismatches this exists to absorb, both found by debugging a list
-    that silently refused to rebuild:
-      - `<code>json_script</code>, which...` -> "json_script , which" from
-        get_text(' ') but "`json_script`, which" from trafilatura
-      - "the HTML as a <script> tag" -> "a`<script>` tag", with backticks
-        inserted mid-phrase
-
-    Dropping all non-alphanumerics makes both sides comparable without
-    guessing which converter did what.
+    Used to compare trafilatura's plain-text output against DOM text. The two
+    disagree constantly on whitespace and punctuation spacing, and neither
+    difference is meaningful for deciding "is this the same content".
     """
     return re.sub(r"[^a-z0-9]+", "", value.lower())
 
 
-def restore_list_items(text: str, html: str) -> tuple[str, int]:
-    """Rebuild bullet lists that trafilatura split apart.
+def find_article_node(html: str, plain_text: str):
+    """Locate the ORIGINAL DOM element holding the article trafilatura found.
 
-    THE BUG, reported by a reviewer who counted the bullets: a three-item list
-    in the source arrived as ONE bullet with all three items run together.
+    THE PROBLEM THIS SOLVES. trafilatura decides what the article is, and it
+    is very good at that. But it will only hand back its own text or its own
+    simplified HTML -- and both are already lossy. Its HTML output normalises
+    <ol> to <ul> and strips <code> entirely, so even converting THAT loses a
+    numbered checklist. Only the original DOM has everything.
 
-    Cause, confirmed by reading trafilatura's raw output: it terminates a list
-    item at every inline `code` span, so
+    So: use trafilatura's extracted text as a FINGERPRINT, and find the
+    smallest original element that contains it.
 
-        <li>formatting dates ({{ row.date|date:"M j" }})</li>
+    Smallest matters. Every ancestor of the article also contains the article,
+    all the way up to <html>. Taking the smallest gives the tightest container
+    -- the article and as little else as possible.
 
-    comes out as several fragments with only the FIRST carrying a "-" marker.
-    Our sentence-rejoiner then compounded it by gluing the fragments into one
-    line -- by that point the markers were already gone, so it could not tell
-    an item boundary from a mid-sentence break.
+    WHY NOT `find('article') or find('main')`. Tried first, and it failed on
+    3 of 10 real pages in this corpus, which have neither element. The
+    fingerprint approach located the right node on 29 of 29 cached pages,
+    median coverage ratio 1.00.
 
-    This is CONTENT loss, not formatting loss: a reader counting three
-    recommendations finds one.
-
-    THE FIX is the one that already worked for code indentation -- the DOM has
-    the real structure, so read the list from there instead of trying to
-    repair the converter's output.
-
-    Each <ul>/<ol> is located in the extracted text by its FIRST item's
-    opening words, and the run of text covering that list is replaced with a
-    properly rendered one. Lists whose first item cannot be located are left
-    untouched.
+    Returns None when nothing matches, and the caller falls back.
     """
-    if not text or not re.search(r"<[uo]l[ >]", html, re.I):
-        return text, 0
+    if not plain_text or not plain_text.strip():
+        return None
+
+    target = _match_key(plain_text)
+    if len(target) < 100:
+        # Too little text to fingerprint reliably; a short key would match
+        # half the page.
+        return None
 
     try:
         soup = BeautifulSoup(html, "lxml")
     except Exception:  # noqa: BLE001
-        return text, 0
+        return None
 
-    fixed = 0
-    for list_tag in soup.find_all(["ul", "ol"]):
-        # Skip navigation-ish lists: those are chrome the extractor already
-        # (correctly) dropped, and "restoring" them would put nav back in.
-        items = [li for li in list_tag.find_all("li", recursive=False)]
-        if len(items) < 2:
+    for tag in soup(["script", "style", "noscript"]):
+        tag.decompose()
+
+    minimum = len(target) * _FINGERPRINT_COVERAGE
+    ceiling = len(target) * _FINGERPRINT_MAX_RATIO
+
+    best = None
+    best_size = None
+    # Only container-shaped elements are candidates. Checking every tag was
+    # measurably slower with no benefit -- an article never lives in a <span>.
+    for element in soup.find_all(["article", "main", "div", "section", "body"]):
+        size = len(_match_key(element.get_text(" ")))
+        if size < minimum or size > ceiling:
             continue
 
-        ordered = list_tag.name.lower() == "ol"
-        rendered = []
-        for number, item in enumerate(items, start=1):
-            body = _inline_markdown(item)
-            if not body:
+        # Reject candidates that are mostly links.
+        #
+        # Found as a regression when this replaced the old extractor: on a
+        # Cloudflare article the smallest qualifying element was a
+        # `dropdown-container` -- a site-wide nav menu that links to enough
+        # pages to contain the article's vocabulary. It rendered as 764
+        # bullets at link density 0.96.
+        #
+        # "Smallest container holding the text" is necessary but not
+        # sufficient; the container also has to look like prose. The junk
+        # gate did catch this one downstream, but relying on that would mean
+        # losing an article we can extract correctly.
+        text_length = len(element.get_text(" ", strip=True))
+        if text_length:
+            linked = sum(
+                len(a.get_text(" ", strip=True)) for a in element.find_all("a")
+            )
+            if linked / text_length > 0.5:
                 continue
-            marker = f"{number}." if ordered else "-"
-            rendered.append(f"{marker} {body}")
-        if len(rendered) < 2:
-            continue
 
-        # Anchor on the first item's opening words, compared on the
-        # punctuation-insensitive key so converter differences do not defeat
-        # the match.
-        first_key = _match_key(items[0].get_text(" ", strip=True))[:30]
-        last_key = _match_key(items[-1].get_text(" ", strip=True))
-        # A short key is only a problem if it is AMBIGUOUS. The original
-        # guard required 12+ characters, which silently skipped a genuine
-        # three-step ordered list whose first item keyed to "firstdothis"
-        # (11). Requiring uniqueness instead of length is the property that
-        # actually matters -- a short key appearing exactly once in the
-        # document identifies its list just as well as a long one.
-        if len(first_key) < 6 or len(last_key) < 6:
-            continue
+        if best_size is None or size < best_size:
+            best, best_size = element, size
 
-        blocks = text.split("\n\n")
-        keys = [_match_key(block) for block in blocks]
-
-        matches = [i for i, k in enumerate(keys) if first_key in k]
-        if len(matches) != 1:
-            # Zero matches: the list is not in the extracted text (usually a
-            # nav menu the extractor correctly dropped).
-            # Several matches: the key is ambiguous, so we cannot tell which
-            # occurrence is the list. Guessing risks replacing the wrong span.
-            continue
-        start = matches[0]
-
-        # NOTE: no "already looks fine, skip it" shortcut.
-        #
-        # An earlier version only rebuilt lists that were visibly split. That
-        # covered the reported bug but measured at just 25% of real body list
-        # items rendered with markers, because trafilatura also drops markers
-        # in ways that are not obviously "split" -- and it renders <ol> as
-        # "-" bullets, losing the numbering entirely.
-        #
-        # Rebuilding unconditionally from the DOM is simpler and strictly
-        # more accurate: the DOM is the source of truth for what the author
-        # wrote. The safety comes from the match being unique and the span
-        # being size-checked below, not from guessing whether a repair is
-        # needed.
-
-        # The last item's text may be spread over several blocks -- that
-        # splitting is exactly what this function undoes. So walk forward
-        # while the accumulated text is still consuming the final item, and
-        # stop at the first block that contributes nothing to it.
-        end = start
-        consumed = ""
-        for index in range(start, min(start + 12, len(blocks))):
-            consumed += keys[index]
-            end = index
-            if last_key[-20:] and last_key[-20:] in consumed:
-                break
-        else:
-            # Never saw the end of the final item; replacing a guessed span
-            # risks swallowing real prose, so leave this list alone.
-            continue
-
-        # Refuse to replace a span that is much larger than the list itself.
-        # If the arithmetic is off, this is what stops the function deleting
-        # paragraphs of an article.
-        replacement = "\n".join(rendered)
-        original_len = len("\n\n".join(blocks[start : end + 1]))
-        if original_len > len(replacement) * 3 + 400:
-            continue
-
-        blocks[start : end + 1] = [replacement]
-        text = "\n\n".join(blocks)
-        fixed += 1
-
-    return text, fixed
+    return best
 
 
-def restore_blockquotes(text: str, html: str) -> tuple[str, int]:
-    """Re-mark quoted passages with Markdown '>' prefixes.
+def render_markdown(node, base_url: str | None = None) -> str:
+    """Render a DOM subtree to Markdown.
 
-    WHY THIS MATTERS MORE THAN IT LOOKS. trafilatura keeps blockquote TEXT but
-    drops the marker, so a passage the author was quoting from someone else
-    becomes indistinguishable from their own words. Measured across six real
-    cached pages: text present in all six, '>' marker in none.
-
-    That is not a formatting nicety -- it changes attribution. On a Simon
-    Willison link-blog post the quoted passage IS the substance of the piece,
-    and reading it as his own writing misrepresents both parties.
-
-    Matched by the first sentence of each blockquote, then every line of the
-    matching paragraph is prefixed. Unmatched quotes are left alone: a
-    mis-marked quote would be worse than an unmarked one.
+    Correct by construction: <ul> is a list, <li> is an item, <pre> preserves
+    whitespace, <strong> is bold, and nesting order is reading order. There is
+    no lossy conversion to repair afterwards -- which is the entire reason
+    this replaced trafilatura's own converter.
     """
-    if not text or "<blockquote" not in html.lower():
-        return text, 0
+    # Work on a copy so the caller's soup is not mutated -- compute_link_density
+    # parses the same HTML afterwards and must see it intact.
+    clone = BeautifulSoup(str(node), "lxml")
+    for tag in clone(_CHROME_TAGS):
+        tag.decompose()
 
-    try:
-        soup = BeautifulSoup(html, "lxml")
-    except Exception:  # noqa: BLE001
-        return text, 0
+    # Make links absolute. A stored article is read away from the site it came
+    # from, so "/blog/which-model" resolves against whatever host the reader
+    # happens to be on -- which is either a 404 or, worse, the wrong page.
+    # Seen on a real article whose entire "Further Reading" list was
+    # site-relative.
+    if base_url:
+        for anchor in clone.find_all("a", href=True):
+            href = anchor["href"].strip()
+            if href and not href.startswith(("http://", "https://", "#", "mailto:")):
+                anchor["href"] = urljoin(base_url, href)
 
-    # Opening fragments of each blockquote, longest first so the most
-    # specific match wins when one quote starts with another's words.
-    openers: list[str] = []
-    for quote in soup.find_all("blockquote"):
-        quoted = " ".join(quote.get_text(" ", strip=True).split())
-        if len(quoted) >= 40:
-            openers.append(quoted)
-    if not openers:
-        return text, 0
-    openers.sort(key=len, reverse=True)
-
-    blocks = text.split("\n\n")
-    marked = 0
-    for position, block in enumerate(blocks):
-        flat = " ".join(block.split())
-        if not flat or block.lstrip().startswith((">", "#", "```")):
-            continue
-        for quoted in openers:
-            # A 60-character prefix is long enough to be unambiguous and
-            # short enough to survive trafilatura's whitespace changes.
-            probe = quoted[:60]
-            if probe and probe in flat:
-                blocks[position] = "\n".join(
-                    f"> {line}" if line.strip() else ">"
-                    for line in block.split("\n")
-                )
-                marked += 1
-                break
-
-    return "\n\n".join(blocks), marked
+    converter = _ArticleConverter(
+        heading_style="ATX",        # "## Heading", not underlines
+        bullets="-",                # one marker everywhere, not -/*/+ by depth
+        strong_em_symbol="*",
+        escape_asterisks=False,     # do not backslash-escape prose punctuation
+        escape_underscores=False,
+        escape_misc=False,
+        code_language="",           # ``` with no language guess
+    )
+    return converter.convert_soup(clone)
 
 
 def _extract_primary(html: str, url: str | None) -> tuple[str, str | None]:
-    """trafilatura: the extractor whose output we keep."""
+    """Locate the article with trafilatura, render it from the original DOM."""
+    # 1. trafilatura decides WHAT the article is. Plain text, because we only
+    #    need it as a fingerprint -- its formatting is exactly what we are
+    #    replacing.
     try:
-        text = trafilatura.extract(
+        plain = trafilatura.extract(
             html,
             url=url,
-            # Markdown, not plain text. The default 'txt' format flattens the
-            # document: headings become ordinary lines indistinguishable from
-            # prose, and code blocks lose their fences entirely. Reported by
-            # the user on a Julia Evans post -- the paragraphs were all there
-            # but its 9 section headings and 4 code blocks had vanished, so
-            # the stored article read as one undifferentiated wall of text.
-            #
-            # Markdown keeps the structure the author wrote (## headings,
-            # ``` fences, - bullets) while still being plain text that any
-            # consumer can read. Measured on that page: 8941 chars with 0
-            # headings and 0 fences -> 9482 chars with 10 headings and 8
-            # fences.
-            output_format="markdown",
-            # These flags are the difference between an article and an
-            # article plus its comment section and navigation.
             include_comments=False,
-            include_tables=True,     # data tables are often the point
+            include_tables=True,
             include_images=False,
-            # Keep bold and italic. Emphasis is authorial intent, not
-            # decoration -- "do NOT do this" reads differently unemphasised.
-            include_formatting=True,
-            # Keep links as Markdown [text](url).
-            #
-            # This was OFF, and turning it on used to empty nine of ten
-            # headings, because trafilatura converted each heading's own
-            # self-anchor into a link and lost the text. That is no longer
-            # true: unwrap_heading_anchors() now removes those anchors before
-            # extraction, so links can be kept in body prose without touching
-            # headings. Re-measured on the reported page after the unwrap
-            # landed: 8 links restored, 10 headings intact, 0 empty.
-            #
-            # Worth keeping because a link is information. "See this post"
-            # with the URL stripped is strictly less useful than the original,
-            # and the brief asks for the article as published.
-            include_links=True,
-            #
-            # favor_precision is deliberately NOT set, and that is a reversal.
-            # It was on originally, on the reasoning that dropping a paragraph
-            # beats keeping navigation. Measuring showed what it actually
-            # dropped: EVERY heading. On the Julia Evans post it took the
-            # count from 10 to 0; on a Cloudflare post from 7 to 6.
-            #
-            # Checked for the boilerplate it was supposed to be protecting
-            # against -- across three sites (jvns.ca, blog.cloudflare.com,
-            # research.google) turning it off introduced no nav, no footer,
-            # no share buttons, no cookie notice. It was paying a certain
-            # cost for a benefit that did not materialise on this corpus.
-            #
-            # The junk rules (length, link density, extractor cross-check)
-            # remain the real defence against bad extractions, and they are
-            # measured rather than assumed.
         ) or ""
     except Exception:  # noqa: BLE001 - never let one bad page kill the run
-        text = ""
+        plain = ""
+
+    # 2. Find that article in the ORIGINAL DOM and render it faithfully.
+    text = ""
+    if plain:
+        node = find_article_node(html, plain)
+        if node is not None:
+            try:
+                text = render_markdown(node, base_url=url)
+            except Exception as exc:  # noqa: BLE001
+                # LOUD, not silent. The first version swallowed this, and a
+                # markdownify API mismatch (a renamed keyword argument) then
+                # made EVERY page fall back to unstructured text while the
+                # crawl still reported success. The only visible symptom was
+                # headings and links dropping to zero. A renderer failure is
+                # a bug in this file, not a property of the page.
+                print(f"  warning: markdown rendering failed ({exc}); "
+                      "falling back to plain text")
+                text = ""
+
+    if not text.strip():
+        # Fallback: trafilatura's own text. Loses structure, but a
+        # structure-less article beats no article, and the quality gates
+        # still judge it on its merits.
+        text = plain
 
     title = None
     try:
@@ -904,33 +599,13 @@ def extract(html: str, url: str | None, config: Config) -> ExtractionResult:
             ok=False, failed_rules=["empty_html"], detail="No HTML to extract from."
         )
 
-    # Unwrap self-linking headings before extraction, or they arrive empty.
-    # Applied to the copy fed to BOTH extractors so the cross-check compares
-    # like with like.
-    html = unwrap_heading_anchors(html)
-
+    # Render the article from the original DOM. No repair pass follows: the
+    # five functions that used to patch the converter's damage (list rebuild,
+    # code re-indentation, blockquote re-marking, heading-anchor unwrapping,
+    # sentence rejoining) were deleted along with the damage itself.
     raw_text, title = _extract_primary(html, url)
 
-    # Rebuild split-apart lists BEFORE normalise_text.
-    #
-    # Order matters and was found by getting it wrong: normalise_text runs the
-    # sentence-rejoiner, which merges paragraph fragments. Given a list whose
-    # items trafilatura has already shredded, the rejoiner cannot tell an item
-    # boundary from a mid-sentence break and welds three bullets into one.
-    # Restoring the list first means the rejoiner sees proper list markers and
-    # leaves them alone.
-    text, lists_fixed = restore_list_items(raw_text, html)
-
-    text = normalise_text(text)
-
-    # Restore what the markdown converter dropped, using the DOM as the
-    # source of truth. These run AFTER normalise_text: it is what collapses
-    # whitespace, so restoring first would have its work undone.
-    #
-    # Code indentation first -- normalise_text leaves fenced blocks alone, so
-    # the fences it produced are already stable landmarks to match against.
-    text, code_restored = restore_code_indentation(text, html)
-    text, quotes_marked = restore_blockquotes(text, html)
+    text = normalise_text(raw_text)
 
     text, boilerplate_removed = strip_boilerplate_lines(text)
     # Remove a trailing "Recent articles" list BEFORE measuring density, so
@@ -975,6 +650,10 @@ def extract(html: str, url: str | None, config: Config) -> ExtractionResult:
         headings=sum(1 for line in text.splitlines() if line.lstrip().startswith("#")),
         # Fences come in pairs, so halve the count to get blocks.
         code_blocks=text.count("```") // 2,
+        list_items=sum(
+            1 for line in text.splitlines()
+            if re.match(r"^\s*[-*+] |^\s*\d+[.)]\s", line)
+        ),
         content_hash=hashlib.sha256(text.encode("utf-8")).hexdigest() if text else None,
         link_density=link_density,
         secondary_chars=secondary_chars,
@@ -1049,12 +728,6 @@ def extract(html: str, url: str | None, config: Config) -> ExtractionResult:
         notes.append(f"removed {boilerplate_removed} boilerplate line(s)")
     if link_list_lines_removed:
         notes.append(f"removed a trailing link list ({link_list_lines_removed} lines)")
-    if lists_fixed:
-        notes.append(f"rebuilt {lists_fixed} split list(s)")
-    if code_restored:
-        notes.append(f"restored indentation in {code_restored} code block(s)")
-    if quotes_marked:
-        notes.append(f"re-marked {quotes_marked} blockquote(s)")
     if notes:
         joined = "; ".join(notes)
         result.detail = f"{result.detail}; {joined}" if result.detail else joined

@@ -301,6 +301,7 @@ class Pipeline:
         record.text_words = extraction.words
         record.headings = extraction.headings
         record.code_blocks = extraction.code_blocks
+        record.list_items = extraction.list_items
         record.link_density = extraction.link_density
         record.secondary_text_chars = extraction.secondary_chars
         record.extractor_agreement = extraction.agreement

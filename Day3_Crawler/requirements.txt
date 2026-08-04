@@ -10,11 +10,23 @@
 httpx[http2]==0.28.1
 
 # --- Extraction ---
-# trafilatura is the primary extractor: it is the current state of the art for
-# boilerplate removal (nav/footer/share buttons) and is what extraction
-# benchmarks measure against. Hand-written BeautifulSoup rules would be
-# per-site and rot on the first redesign.
+# trafilatura FINDS the article. It is the state of the art at deciding which
+# element on a page is the content (mean F1 0.883 across eight datasets), and
+# a naive find('article') or find('main') failed on 3 of 10 real pages here.
+# Its Markdown CONVERTER is not used -- see markdownify below.
 trafilatura==2.0.0
+# markdownify RENDERS the article, over the original DOM.
+#
+# This split exists because trafilatura's converter is lossy in ways that cost
+# content: measured on one page, 0 list markers where the source had 41, code
+# indentation stripped, and text reordered (an inline <code> moved to the end
+# of its sentence). Five repair functions were written to patch that and then
+# deleted -- a repair must locate the damaged text, but the damage reorders
+# it. Rendering from the DOM is correct by construction instead.
+#
+# Chosen over html2text, which handles nested lists worse -- precisely the
+# failure mode being fixed.
+markdownify==0.14.1
 # readability-lxml is the SECOND, deliberately different extractor. We run it
 # on the same HTML and compare: where two independent algorithms disagree
 # sharply on length, that is evidence of a bad extraction. This is what turns

@@ -108,6 +108,7 @@ class CrawlRecord(Base):
     # the headings gone. A long article with zero headings is worth flagging.
     headings: Mapped[int | None] = mapped_column(Integer, nullable=True)
     code_blocks: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    list_items: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     # ---------- publish date ----------
     published_at: Mapped[datetime | None] = mapped_column(

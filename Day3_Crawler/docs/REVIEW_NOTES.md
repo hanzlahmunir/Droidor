@@ -10,6 +10,93 @@ during the build, not a preference.
 These five are the most useful part of this document: each was invisible in
 code review and only appeared when the thing was actually used.
 
+### -4. THE ROOT CAUSE: repairing a lossy converter instead of doing the conversion
+
+**How it surfaced.** A reviewer crawled a new article and listed five
+formatting faults: bullets wrong under one heading, bullets wrong in another
+section, a sentence turned into a paragraph, a numbered checklist rendered as
+a flat paragraph, and a "Further Reading" list flattened too. Then the
+sentence that mattered: *"I can review each and every blog once we crawl it.
+This is supposed to be an automated system."*
+
+**The diagnosis.** Every formatting bug in this document — headings, code
+indentation, links, blockquotes, bullets — was the same shape. trafilatura's
+Markdown converter mangles inline structure, and I wrote a matcher to find
+the damage and patch it. That approach has a ceiling, and this article hit it:
+
+```text
+DOM order  : Run `/cost`. Find out where the money goes...
+CONVERTER  : **Run**Find out where the money goes...`/cost`.
+```
+
+The code span is **moved to the end of the sentence**. A repair function has
+to locate the damaged text — but the damage *reorders* it, so the matcher
+cannot find what it is meant to fix. Patching that specific case would mean
+matching scrambled text against unscrambled text, and the next site with a
+different nesting pattern breaks it again. That is the opposite of automated.
+
+**The fix: split the two jobs.**
+
+| | Before | After |
+| --- | --- | --- |
+| Find the article | trafilatura | trafilatura (unchanged) |
+| Render it | trafilatura's converter | markdownify, over the **original DOM** |
+| Repair functions | 5 | 0 |
+
+Rendering from the DOM is correct *by construction*: `<ul>` is a list, `<li>`
+is an item, `<pre>` preserves whitespace, `<strong>` is bold, nesting order is
+reading order. There is no damage to repair, so all five repair functions
+(`restore_list_items`, `restore_code_indentation`, `restore_blockquotes`,
+`unwrap_heading_anchors`, `_rejoin_split_sentences`) were **deleted** — 394
+lines of extract.py, plus 9 tests of their internals.
+
+**Why trafilatura stays.** Finding *which element* is the article is the hard
+part and it is best in class at it (mean F1 0.883 across eight datasets). A
+naive `find('article') or find('main')` failed on 3 of 10 real pages here.
+Its decision is mapped back to the original DOM by using its extracted text
+as a fingerprint and taking the smallest element containing it — which
+located the right node on **29 of 29** cached pages, median coverage 1.00.
+
+**Why not just convert trafilatura's HTML output.** Tried it: `output_format="html"`
+already normalises `<ol>` to `<ul>` and strips `<code>` entirely, so the
+numbered checklist was still lost. Only the original DOM has everything.
+
+**Measured across the corpus, old converter → new renderer:**
+
+| | Before | After |
+| --- | ---: | ---: |
+| Bullets | 64 | **116** |
+| Numbered items | 15 | **73** |
+| Headings | 137 | **171** |
+| Code blocks | 63 | **70** |
+| Articles with headings | 50% | **80%** |
+| Boilerplate markers leaked | 0 | **0** |
+
+Links went 421 → 397, which is an improvement: heading self-anchors
+(`### [text](#text)`) are now dropped rather than rendered as noise.
+
+**Two bugs found during the rewrite, both by measuring rather than assuming:**
+
+1. **A silent total failure.** markdownify 0.14 uses
+   `convert_<tag>(self, el, text, convert_as_inline)`; I wrote a newer
+   release's `parent_tags` keyword. Every page raised `TypeError`, was caught
+   by a bare `except`, and fell back to unstructured text — while the crawl
+   still reported success. The only symptom was headings and links dropping
+   to zero. The fallback now prints a warning: a renderer failure is a bug in
+   our code, not a property of the page.
+
+2. **A nav menu selected as the article.** On a Cloudflare page the smallest
+   element containing the article's text was a `dropdown-container` — a
+   site-wide menu linking to enough pages to cover the vocabulary. It
+   rendered as 764 bullets at link density 0.96. "Smallest container holding
+   the text" is necessary but not sufficient; candidates over 50% link text
+   are now rejected. Fixed: 0 pages rejected as junk, max density 0.21.
+
+**The generalisable lesson**, and the one worth telling: *when you find
+yourself writing the third function to repair another tool's output, the tool
+is being asked to do a job it does not do. Repairs accumulate; a correct
+representation does not need them.*
+
 ### -3. A three-bullet list arrived as one bullet
 
 **Symptom.** A reviewer counted: "in the real blog it has 3 bullets ... while

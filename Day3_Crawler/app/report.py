@@ -279,6 +279,7 @@ def build(session: Session, config: Config) -> Report:
         "total_headings": sum(r.headings or 0 for r in stored_records),
         "articles_with_code_blocks": len(with_code),
         "total_code_blocks": sum(r.code_blocks or 0 for r in stored_records),
+        "total_list_items": sum(r.list_items or 0 for r in stored_records),
         "long_articles_without_headings": [
             {"url": r.canonical_url, "chars": r.text_chars, "source": r.host}
             for r in sorted(long_without_headings, key=lambda r: -(r.text_chars or 0))
@@ -573,6 +574,7 @@ def to_markdown(report: Report, config: Config) -> str:
     add(f"| Total headings kept | {structure['total_headings']} |")
     add(f"| Articles with code blocks | {structure['articles_with_code_blocks']} |")
     add(f"| Total code blocks kept | {structure['total_code_blocks']} |")
+    add(f"| Total list items kept | {structure['total_list_items']} |")
     add("")
 
     if structure["long_articles_without_headings"]:

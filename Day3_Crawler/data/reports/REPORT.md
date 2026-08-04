@@ -1,6 +1,6 @@
 # Data Quality Report
 
-Generated: 2026-07-31 15:47 UTC
+Generated: 2026-08-04 15:41 UTC
 
 Every number below is computed by counting rows in `crawl_records`, not written by hand. Re-run `report` to regenerate it.
 
@@ -8,13 +8,13 @@ Every number below is computed by counting rows in `crawl_records`, not written 
 
 | Metric | Value |
 | --- | --- |
-| URLs processed | 25 |
-| Articles stored | 20 (80.0%) |
+| URLs processed | 26 |
+| Articles stored | 20 (76.9%) |
 | Duplicates | 0 (0.0%) |
-| Extraction failed or junk | 0 (0.0%) |
+| Extraction failed or junk | 1 (3.8%) |
 | Missing/unparseable date (of stored) | 0 (0.0%) |
-| Mean article length | 7812 chars |
-| Median article length | 8730 chars |
+| Mean article length | 8407 chars |
+| Median article length | 9374 chars |
 
 ## Every outcome
 
@@ -22,13 +22,14 @@ Each URL gets exactly one status, so these counts partition the input and sum to
 
 | Status | Count | % |
 | --- | ---: | ---: |
-| `stored` | 20 | 80.0% |
-| `bot_wall` | 5 | 20.0% |
-| **total** | **25** | **100%** |
+| `stored` | 20 | 76.9% |
+| `bot_wall` | 5 | 19.2% |
+| `junk` | 1 | 3.8% |
+| **total** | **26** | **100%** |
 
 ## Duplicates, and how they were detected
 
-**0 of 25 URLs (0.0%)** were duplicates.
+**0 of 26 URLs (0.0%)** were duplicates.
 
 Three independent layers, reported separately because they catch
 different things and have different reliability:
@@ -39,17 +40,23 @@ different things and have different reliability:
 | `content_sha256` | 0 | 0.0% | SHA-256 of the whitespace-normalised article text. Catches syndicated copies under different URLs. |
 | `near_duplicate` | 0 | 0.0% | Jaccard similarity over 5-word shingles, threshold 85%. |
 
-Highest similarity among articles we KEPT: **15.6%** (threshold 85%). 
+Highest similarity among articles we KEPT: **1.8%** (threshold 85%). 
 That is comfortably below the threshold, so no kept article is a borderline call.
 
 ## Extraction failures and junk
 
-**0 of 25 (0.0%)** either produced no text or produced text that failed a quality rule.
+**1 of 26 (3.8%)** either produced no text or produced text that failed a quality rule.
 
 | Outcome | Count | % | Meaning |
 | --- | ---: | ---: | --- |
 | `extraction_failed` | 0 | 0.0% | Page fetched, but no article text came out of it. |
-| `junk` | 0 | 0.0% | Text extracted, but it failed a quality rule. |
+| `junk` | 1 | 3.8% | Text extracted, but it failed a quality rule. |
+
+Which rule rejected them (one document can fail several):
+
+| Rule | Times fired | Definition |
+| --- | ---: | --- |
+| `too_short` | 1 | fewer than 300 characters |
 
 ## Publish dates
 
@@ -66,18 +73,19 @@ Where the dates actually came from (ladder, most authoritative first):
 
 | Source | Articles |
 | --- | ---: |
-| `rss` | 20 |
+| `rss` | 19 |
+| `json_ld` | 1 |
 
 ## Article length
 
 | Metric | Characters |
 | --- | ---: |
-| Mean | 7812 |
-| Median | 8730 |
-| Shortest | 859 |
-| Longest | 18928 |
+| Mean | 8407 |
+| Median | 9374 |
+| Shortest | 410 |
+| Longest | 15568 |
 
-Mean words per article: 1202.
+Mean words per article: 1339.
 
 ## Structure retained
 
@@ -85,127 +93,119 @@ Clean text is not the whole job: an article stripped down to undifferentiated pa
 
 | Metric | Value |
 | --- | ---: |
-| Articles with headings | 10 of 20 (50.0%) |
-| Total headings kept | 99 |
-| Articles with code blocks | 9 |
-| Total code blocks kept | 54 |
-
-Long articles (4,000+ chars) that came out with **no headings** — these are the ones worth inspecting:
-
-| Article | Chars |
-| --- | ---: |
-| https://research.google/blog/symptomai-towards-a-conversational-ai-agent-for-everyday-symptom-assessment | 11018 |
-| https://research.google/blog/towards-demystifying-the-creativity-of-diffusion-models | 8924 |
-| https://research.google/blog/sensorfm-towards-a-general-intelligence-and-interface-for-wearable-health-data | 8536 |
-| https://research.google/blog/towards-a-quantum-computer-that-learns-from-its-errors | 7094 |
-| https://research.google/blog/science-one-framework-a-verifiable-autonomous-research-framework-via-chain-of-evidence | 6250 |
-
-Known cause for `research.google`: its headings sit in a different DOM branch (`div.component-intro`) from its article body (`div.blog-summary`), so an extractor that selects one content container cannot associate them. Reported rather than worked around with a site-specific rule.
+| Articles with headings | 16 of 20 (80.0%) |
+| Total headings kept | 131 |
+| Articles with code blocks | 10 |
+| Total code blocks kept | 41 |
+| Total list items kept | 179 |
 
 ## The 5 shortest articles
 
 The brief predicts these are usually garbage, so they are quoted here rather than just listed — judge for yourself.
 
-### 1. A quote from Bruce Schneier
+### 1. Don’t be a meat proxy
 
-- **859 chars**, 142 words
-- URL: https://simonwillison.net/2026/Jul/30/bruce-schneier
-- Stored as document `#9`
-- Publish date: 2026-07-30T18:25:26+00:00
-- Link density: 0.33
+- **410 chars**, 76 words
+- URL: https://simonwillison.net/2026/Aug/3/dont-be-a-meat-proxy
+- Stored as document `#7`
+- Publish date: 2026-08-03T23:45:04+00:00
+- Link density: 0.06
 
 ```text
-30th July 2026
+**[Don't be a meat proxy](https://gruhn.me/blog/2026-08-03/)** ([via](https://lobste.rs/s/hfbqr3/don_t_be_meat_proxy#c_svolls "Lobste.rs")) Niklas Gruhn coins an excellent new term - **meat proxy** - for people who blindly copy and paste the output of AI systems to their peers.
 
-> The writing assignments I give my students are gym tasks, not work tasks. I ask them to write policy memos not because the world needs more policy memos. I assign them because the very act of writing, which includes thinking and outlining and drafting and editing, making and criticizing and revising arguments, will help develop the critical thinking skills they will need in their future careers. And without this constant mental exercise, those skills will atrophy. Employers are
+> By all means, prompt AI. But don't just relay the output. Read it, understand it, validate it, and then write a response in your own words (a decent certificate that you've done the prior steps). Making that effort is value you can add.
+```
 
-[already noticing].
+### 2. A quote from Steve Yegge
 
-— [Bruce Schneier](https://www.schneier.com/blog/archives/2026/07/should-you-
+- **539 chars**, 102 words
+- URL: https://simonwillison.net/2026/Aug/4/steve-yegge
+- Stored as document `#6`
+- Publish date: 2026-08-04T00:42:45+00:00
+- Link density: 0.04
+
+```text
+> [Gas Town](https://yegge.ai/gastown.html) was intended to be reusable, but I only ever wound up using it to build itself. Gas Town fell apart at the seams with Opus 4.7. Up through 4.6 it was working brilliantly. With 4.7 we saw the introduction of the "just two more things" tic, which prevented Opus from ever converging on being ready to do real work—it always wanted to fiddle with Gas Town itself. The Opus tic never went away, so Gas Town effectively burned down. It had other problems, too, but 4.7 was the final straw.
+
+— [Steve Yegge](https://yegge.ai/essays/the-shape-of-things-to-come/),
 ...[truncated]
 ```
 
-### 2. Links to CSS colour palettes
+### 3. Comment: Devtools must be open source (exe.dev)
 
-- **1453 chars**, 258 words
+- **1082 chars**, 202 words
+- URL: https://simonwillison.net/2026/Aug/3/devtools-must-be-open-source-exedev
+- Stored as document `#8`
+- Publish date: 2026-08-03T15:30:38+00:00
+- Link density: 0.06
+
+```text
+[Comment](https://simonwillison.net/elsewhere/comment/) [My comment](https://news.ycombinator.com/item?id=49156111#49156719) on [Devtools must be open source (exe.dev)](https://news.ycombinator.com/item?id=49156111) — Hacker News
+
+One of the arguments for open source software for end-users has always been the freedom to examine and modify how that software works.
+
+The reality for most people - even expert programmers - has been that the freedom is more about being able to lean on *other people* to do that. Most people can't justify the time commitment needed to read and then modify the code fo
+...[truncated]
+```
+
+### 4. Release: condense-json 1.0
+
+- **1244 chars**, 207 words
+- URL: https://simonwillison.net/2026/Aug/2/condense-json
+- Stored as document `#9`
+- Publish date: 2026-08-02T22:19:59+00:00
+- Link density: 0.01
+
+```text
+I'm trying to get braver at releasing 1.0 versions. This little library is a year and a half old now - I've applied some sensible and non-disruptive fixes and shipped the big 1.0 for it.
+
+Here's an example of what it can do, lifted from the README:
+
+```
+{
+  "foo": {
+    "bar": {
+      "string": "This is a string with foxes in it",
+      "nested": {
+        "more": ["Here is a string", "another with foxes in it too"]
+      }
+    }
+  }
+}
+```
+
+Combine that with a replacements object:
+
+```
+{"1": "with foxes in it"}
+```
+
+And `condense_json(input_json, replacements)` produces the following:
+
+```
+{
+ 
+...[truncated]
+```
+
+### 5. Links to CSS colour palettes
+
+- **1555 chars**, 282 words
 - URL: https://jvns.ca/blog/2026/05/04/css-colour-palettes
 - Stored as document `#4`
 - Publish date: 2026-05-04T00:00:00+00:00
-- Link density: 0.10
+- Link density: 0.21
 
 ```text
-# Links to CSS colour palettes
-
-A while back I decided to stop using Tailwind for new projects and to just write vanilla CSS instead.
+A while back I decided to stop using Tailwind for new projects and to just write
+vanilla CSS instead.
 
 But one thing I missed about Tailwind was the [colour palette](https://v2.tailwindcss.com/docs/customizing-colors#color-palette-reference) ([here as CSS](https://gist.github.com/jvns/9e59b2cd1fe12601084ba78dded072fe)).
 If I wanted a light blue I could just use `blue-100` and if I didn’t like it
-maybe try `blue-200` or `blue-50` . I’m not very good with colours so it makes
+maybe try `blue-200` or `blue-50`. I’m not very good with colours so it makes
 a big difference to me to have a reasonable colour palette that somebody who is
-better at 
-...[truncated]
-```
-
-### 3. Release: llm-chat-completions-server 0.1a0
-
-- **1557 chars**, 227 words
-- URL: https://simonwillison.net/2026/Jul/30/llm-chat-completions-server
-- Stored as document `#10`
-- Publish date: 2026-07-30T15:43:16+00:00
-- Link density: 0.21
-
-```text
-30th July 2026
-
-[Release](https://simonwillison.net/elsewhere/release/)
-
-[llm-chat-completions-server 0.1a0](https://github.com/simonw/llm-chat-completions-server/releases/tag/0.1a0)— LLM plugin to serve an OpenAI Chat Completions API endpoint
-
-A key goal of the new content-addressable logs [in LLM 0.32rc1](https://simonwillison.net/2026/Jul/30/llm-rc1/) was being able to support OpenAI Chat Completion style requests where each incoming message extends the previous conversation, like this:
-
-```
-curl http://localhost:8002/v1/chat/completions \
-  -H 'Content-Type: application/json' \
-  -d '{
-   
-...[truncated]
-```
-
-### 4. Release: llm 0.32rc2
-
-- **1601 chars**, 268 words
-- URL: https://simonwillison.net/2026/Jul/30/llm-rc2
-- Stored as document `#8`
-- Publish date: 2026-07-30T22:52:06+00:00
-- Link density: 0.21
-
-```text
-30th July 2026
-
-Hot on the heels of [RC1](https://simonwillison.net/2026/Jul/30/llm-rc1/), this fixes a dependency issue and also adds two neat new features:
-
-> - The default model for users who have not set their own default is now [GPT-5.6 Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna). It was previously [GPT-4o mini](https://developers.openai.com/api/docs/models/gpt-4o-mini). Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch b
-...[truncated]
-```
-
-### 5. Advancing the price-performance frontier with GPT‑5.6
-
-- **1977 chars**, 301 words
-- URL: https://simonwillison.net/2026/Jul/30/luna-price-drop
-- Stored as document `#6`
-- Publish date: 2026-07-30T23:58:42+00:00
-- Link density: 0.20
-
-```text
-30th July 2026 - Link Blog
-
-** Advancing the price-performance frontier with GPT‑5.6** (
-
-[via](https://news.ycombinator.com/item?id=49112867)) Huge price drop from OpenAI today: GPT-5.6 Terra got a 20% reduction, and GPT-5.6 Luna got a massive 80% drop.
-
-OpenAI credit 5.6 Sol with enabling this: in [How GPT‑5.6 fuses frontier intelligence with frontier efficiency](https://openai.com/index/gpt-5-6-frontier-intelligence-efficiency/) they describe using 5.6 Sol to optimize load balancing, and more impressively to optimize inference itself:
-
-> We also used GPT‑5.6 Sol to optimize the model’s forw
+better at colour than me has thought about.
 ...[truncated]
 ```
 
@@ -213,7 +213,7 @@ OpenAI credit 5.6 Sol with enabling this: in [How GPT‑5.6 fuses frontier intel
 
 | Reason | Count | % |
 | --- | ---: | ---: |
-| `bot_wall` | 5 | 20.0% |
+| `bot_wall` | 5 | 19.2% |
 
 These are detected and reported, never worked around: the brief puts anything behind a login out of scope.
 
@@ -226,10 +226,11 @@ None in this run.
 | Host | Attempted | Stored |
 | --- | ---: | ---: |
 | jvns.ca | 5 | 5 |
-| simonwillison.net | 5 | 5 |
+| simonwillison.net | 5 | 4 |
 | hacks.mozilla.org | 5 | 0 |
 | blog.cloudflare.com | 5 | 5 |
 | research.google | 5 | 5 |
+| www.claudedirectory.org | 1 | 1 |
 
 ## Thresholds these numbers were measured against
 

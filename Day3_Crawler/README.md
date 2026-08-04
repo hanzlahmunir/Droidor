@@ -79,12 +79,11 @@ it:
 
 | Kept | Recorded run |
 | --- | ---: |
-| Headings | 99 |
-| Fenced code blocks, with original indentation | 54 |
-| Links, as `[text](url)` | 290 |
-| Bullet and numbered list items | 75 |
-| Blockquotes, marked with `>` | 9 lines |
-| Bold and italic | 26 spans |
+| Headings | 131 |
+| Bullet and numbered list items | 179 |
+| Fenced code blocks, with original indentation | 41 |
+| Links, as `[text](url)`, absolute | 301 |
+| Blockquotes, bold, italic | preserved |
 
 Code indentation matters beyond appearance — flattened Python is invalid
 Python, so a reader copying a stored snippet would get an `IndentationError`.
@@ -94,17 +93,17 @@ than from the Markdown converter, which strips it.
 Blockquote markers matter for a different reason: without them, a passage the
 author was quoting from someone else reads as their own words.
 
-None of this worked at first — the initial version stored undifferentiated
+None of this worked at first. The initial version stored undifferentiated
 paragraphs with headings, code fences, links, list markers and quote markers
-all dropped. Twelve separate causes across three rounds of review, all
-documented in [docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md).
+all dropped — because it used trafilatura's Markdown converter and then tried
+to *repair* what that converter mangled. Four rounds of review later, the real
+fix was architectural: let trafilatura find the article and render it from the
+DOM instead. Every repair function was deleted.
 
-**One measured limitation.** trafilatura splits list items at inline code
-spans, so lists are rebuilt from the DOM. Across the corpus, **no list item
-loses its text**, but only about a third are re-rendered with a `-` marker —
-the rest read as plain paragraphs. That is a formatting gap, not content
-loss, and closing it fully would need per-site rules or replacing the
-Markdown converter outright.
+Measured across the corpus, old converter → new renderer: bullets 64 → 116,
+numbered items 15 → 73, headings 137 → 171, articles with headings 50% → 80%,
+boilerplate leaked 0 → 0. Full history in
+[docs/REVIEW_NOTES.md](docs/REVIEW_NOTES.md).
 
 One measurement note: article length and link density are computed on the
 visible prose, with `[text](url)` reduced to `text`. Counting URL characters
@@ -213,9 +212,21 @@ measuring. Cached bytes mean each page was fetched once (polite) and the
 report is reproducible from stored input rather than from a fresh crawl that
 would return slightly different pages every time.
 
-**Why two extractors.** trafilatura produces the output; readability-lxml runs
-on the same HTML purely as a cross-check. Sharp disagreement is *evidence* of
-a bad extraction, which is what makes the junk rate measured rather than
+**Why trafilatura finds but does not render.** Two jobs, two tools:
+trafilatura decides *which element* is the article (best in class at it —
+`find('article') or find('main')` failed on 3 of 10 real pages here);
+markdownify renders that element from the **original DOM**.
+
+They were split after trafilatura's Markdown converter turned out to be lossy
+in ways that cost content — on one page, 0 list markers where the source had
+41, code indentation stripped, and text reordered (an inline `<code>` moved to
+the end of its sentence). Five repair functions were written to patch that and
+then deleted: a repair must *locate* the damaged text, but the damage
+*reorders* it. Rendering from the DOM is correct by construction instead.
+
+**Why a third extractor.** readability-lxml runs purely as a cross-check — its
+output is discarded, its length kept. Sharp disagreement is *evidence* of a
+bad extraction, which is what makes the junk rate measured rather than
 asserted.
 
 **Why not Firecrawl.** Evaluated and rejected — see

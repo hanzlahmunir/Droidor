@@ -11,10 +11,8 @@ import re
 from app.pipeline.extract import (
     compute_link_density,
     extract,
+    find_article_node,
     normalise_text,
-    restore_blockquotes,
-    restore_code_indentation,
-    restore_list_items,
     strip_boilerplate_lines,
     strip_trailing_link_list,
 )
@@ -317,12 +315,17 @@ def test_heading_wrapped_in_a_self_link_keeps_its_text(config):
 
 
 def test_heading_containing_inline_code_is_not_dropped(config):
-    """Defect 3b: inline <code> in a heading dropped the WHOLE heading.
+    """Inline <code> in a heading used to drop the WHOLE heading.
 
     `<h3><code>querystring</code> is cool</h3>` produced nothing at all --
-    not an empty heading, no heading. That is why one section vanished from
-    the reported article. Confirmed with a minimal fixture: a plain h3
-    survives, an h3 containing <code> disappears.
+    not an empty heading, no heading -- which is how a whole section vanished
+    from a reported article.
+
+    The assertion now expects the code span to be PRESERVED as `querystring`
+    rather than flattened to bare text. That is a deliberate tightening: the
+    old extractor could only manage the plain-text form, while rendering from
+    the DOM keeps the author's markup. Asserting the weaker form would let a
+    regression back to flattening pass unnoticed.
     """
     html = (
         "<html><body><article><h3><code>querystring</code> is cool</h3>"
@@ -330,8 +333,8 @@ def test_heading_containing_inline_code_is_not_dropped(config):
         + "</article></body></html>"
     )
     result = extract(html, "https://example.com/x", config)
-    assert "querystring is cool" in result.text, (
-        "a heading containing inline <code> was dropped entirely"
+    assert "`querystring` is cool" in result.text, (
+        f"heading lost its inline code:\n{result.text[:200]}"
     )
 
 
@@ -348,25 +351,6 @@ def test_no_heading_is_emitted_empty(config):
             assert line.strip("# ").strip(), f"empty heading emitted: {line!r}"
 
 
-def test_sentences_split_by_inline_code_are_rejoined():
-    """Defect 4: trafilatura breaks a paragraph after every inline code span.
-
-    One sentence arrived as three paragraphs. Verified to come from
-    trafilatura itself, not our post-processing.
-    """
-    broken = "my favourite filter is `querystring`\n\n: in this site sometimes"
-    assert "\n\n" not in normalise_text(broken)
-
-
-def test_genuine_paragraph_breaks_are_preserved():
-    """The rejoin must be conservative or it destroys real structure."""
-    for text in (
-        "End of a thought.\n\nA new paragraph starts here.",
-        "introducing a list:\n\n- first item",
-        "some prose here\n\n### A heading",
-        "and then this.\n\n```\ncode\n```",
-    ):
-        assert "\n\n" in normalise_text(text), f"wrongly joined: {text!r}"
 
 
 def test_list_indentation_is_preserved():
@@ -448,22 +432,6 @@ def test_code_indentation_is_restored(config):
     assert "        return 1" in result.text
 
 
-def test_restore_code_indentation_leaves_unmatched_blocks_alone():
-    """A wrong replacement is worse than a missing indent.
-
-    If the fenced block cannot be matched back to a <pre> in the DOM, it must
-    be returned untouched rather than swapped for something similar.
-    """
-    text = "```\nsomething not in the html at all\n```"
-    out, restored = restore_code_indentation(text, "<html><pre>unrelated</pre></html>")
-    assert restored == 0
-    assert out == text
-
-
-def test_restore_code_indentation_is_a_noop_without_code():
-    out, restored = restore_code_indentation("just prose", "<html><p>hi</p></html>")
-    assert restored == 0
-    assert out == "just prose"
 
 
 def test_links_are_kept_as_markdown(config):
@@ -525,17 +493,6 @@ def test_blockquotes_are_marked(config):
     assert quoted, f"blockquote was not marked:\n{result.text}"
     assert any("somebody else" in l for l in quoted)
 
-
-def test_restore_blockquotes_ignores_short_quotes():
-    """A very short quote is too likely to collide with ordinary prose.
-
-    Mis-marking a sentence as a quotation is a worse error than leaving a
-    real quotation unmarked, so the matcher requires a substantial passage.
-    """
-    text = "Some ordinary prose here."
-    out, marked = restore_blockquotes(text, "<html><blockquote>ok</blockquote></html>")
-    assert marked == 0
-    assert out == text
 
 
 def test_bold_and_italic_survive(config):
@@ -599,54 +556,6 @@ def test_each_bullet_keeps_its_own_inline_code(config):
     assert any("json_script" in b for b in bullets)
 
 
-def test_rejoiner_never_merges_across_list_items():
-    """The rejoiner made the bug worse before it was fixed.
-
-    Given items already shredded by trafilatura, it could not tell an item
-    boundary from a mid-sentence break and welded them into one line. Any
-    block CONTAINING a list marker is now off limits, not just one that
-    starts with it.
-    """
-    text = "- first item ends open\n\n- second item here"
-    assert "\n\n" in normalise_text(text)
-
-
-def test_match_key_absorbs_converter_punctuation_differences():
-    """Both real matching failures, pinned.
-
-    The two sides of a list match are the same text rendered by different
-    code, and they disagree on punctuation spacing and inserted markup:
-      - get_text(' ') gives "json_script , which"; trafilatura gives
-        "`json_script`, which"
-      - "the HTML as a <script> tag" becomes "a`<script>` tag"
-    Either difference silently defeated a literal comparison.
-    """
-    from app.pipeline.extract import _match_key
-
-    assert _match_key("json_script , which takes") == _match_key(
-        "`json_script`, which takes"
-    )
-    assert _match_key("the HTML as a <script> tag") == _match_key(
-        "the HTML as a`<script>` tag"
-    )
-
-
-def test_restore_list_items_leaves_unmatched_lists_alone():
-    """Unmatched means untouched -- a wrong replacement could eat prose."""
-    text = "Some prose that has nothing to do with any list."
-    out, fixed = restore_list_items(
-        text, "<html><ul><li>alpha item</li><li>beta item</li></ul></html>"
-    )
-    assert fixed == 0
-    assert out == text
-
-
-def test_restore_list_items_ignores_single_item_lists():
-    """A one-item <ul> is usually layout, not a list a reader would count."""
-    out, fixed = restore_list_items(
-        "prose", "<html><ul><li>only one</li></ul></html>"
-    )
-    assert fixed == 0
 
 
 def test_ordered_lists_keep_their_numbering(config):
@@ -672,3 +581,129 @@ def test_malformed_html_does_not_raise(config):
     for broken in ("<html><body><p>unclosed", "<<>>not html at all", "<p>" * 500):
         result = extract(broken, "https://example.com/x", config)
         assert result is not None  # returned a verdict rather than raising
+
+
+# ---------------------------------------------------------------------------
+# The article-node finder.
+#
+# trafilatura decides WHAT the article is; these cover mapping that decision
+# back onto the original DOM so it can be rendered faithfully.
+# ---------------------------------------------------------------------------
+
+LONG_PROSE = (
+    "Vector databases store high dimensional embeddings and let you search "
+    "them by similarity rather than exact keyword match, which matters "
+    "because embeddings capture meaning rather than surface form. "
+) * 4
+
+
+def test_finds_the_article_node_without_an_article_tag():
+    """The reason the fingerprint approach exists at all.
+
+    `find('article') or find('main')` was tried first and failed on 3 of 10
+    real pages, which have neither element. Locating by text fingerprint
+    worked on 29 of 29 cached pages.
+    """
+    html = (
+        "<html><body><div id='page'><div class='nav'><a href='/'>Home</a></div>"
+        f"<div class='post-body'><p>{LONG_PROSE}</p></div></div></body></html>"
+    )
+    node = find_article_node(html, LONG_PROSE)
+    assert node is not None
+    assert "post-body" in " ".join(node.get("class") or [])
+
+
+def test_finds_the_smallest_matching_container():
+    """Every ancestor also contains the article, up to <html>.
+
+    Taking the smallest gives the tightest container -- the article and as
+    little else as possible. The outer div here carries extra prose the
+    article does not have, so choosing it would drag that in.
+    """
+    extra = "Unrelated sidebar commentary that is not part of the article. " * 6
+    html = (
+        f"<html><body><div class='outer'><p>{extra}</p>"
+        f"<div class='inner'><p>{LONG_PROSE}</p></div></div></body></html>"
+    )
+    node = find_article_node(html, LONG_PROSE)
+    assert node is not None
+    assert "inner" in " ".join(node.get("class") or []), (
+        f"picked <{node.name} class={node.get('class')}> instead of .inner"
+    )
+    assert "sidebar commentary" not in node.get_text()
+
+
+def test_nav_container_is_not_mistaken_for_the_article():
+    """Regression from the rewrite itself, caught by measuring the corpus.
+
+    On a Cloudflare article the smallest element containing the article's
+    text was a `dropdown-container` -- a site-wide nav menu linking to enough
+    pages to cover the vocabulary. It rendered as 764 bullets at link density
+    0.96.
+
+    "Smallest container holding the text" is necessary but not sufficient;
+    the container must also look like prose rather than a menu.
+    """
+    links = "".join(
+        f"<a href='/p{i}'>{LONG_PROSE[:40]}</a>" for i in range(30)
+    )
+    html = (
+        f"<html><body><div class='dropdown'>{links}</div>"
+        f"<div class='content'><p>{LONG_PROSE}</p></div></body></html>"
+    )
+    node = find_article_node(html, LONG_PROSE)
+    assert node is not None
+    classes = " ".join(node.get("class") or [])
+    assert "dropdown" not in classes, "picked a nav menu as the article"
+
+
+def test_find_article_node_returns_none_on_tiny_input():
+    """Too little text to fingerprint: a short key matches half the page."""
+    assert find_article_node("<html><body><p>hi</p></body></html>", "hi") is None
+
+
+def test_relative_links_are_made_absolute(config):
+    """A stored article is read away from the site it came from.
+
+    Found on a real page whose entire "Further Reading" list was
+    site-relative -- `/blog/x` resolves against whatever host the reader is
+    on, which is a 404 or the wrong page.
+    """
+    html = (
+        "<html><body><article><h2>T</h2>"
+        + "<p>Filler prose to clear the length floor comfortably. </p>" * 10
+        + "<p>See <a href='/blog/other'>the other post</a>.</p>"
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/blog/this-post", config)
+    assert "(https://example.com/blog/other)" in result.text
+    assert "](/blog/other)" not in result.text
+
+
+def test_heading_self_anchor_is_not_rendered_as_a_link(config):
+    """`### [text](#text)` is noise -- the anchor points at the heading."""
+    html = (
+        "<html><body><article>"
+        "<h2 id='s'><a href='#s'>A section heading</a></h2>"
+        + "<p>Filler prose to clear the length floor comfortably. </p>" * 10
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    assert "## A section heading" in result.text
+    assert "](#s)" not in result.text
+
+
+def test_nested_lists_keep_their_nesting(config):
+    """Rendering from the DOM makes nesting structural, not guesswork."""
+    html = (
+        "<html><body><article><h2>T</h2>"
+        + "<p>Filler prose to clear the length floor comfortably. </p>" * 10
+        + "<ul><li>outer item<ul><li>inner item</li></ul></li></ul>"
+        + "</article></body></html>"
+    )
+    result = extract(html, "https://example.com/x", config)
+    lines = result.text.splitlines()
+    inner = next((l for l in lines if "inner item" in l), "")
+    outer = next((l for l in lines if "outer item" in l), "")
+    assert outer.startswith("-"), f"outer item not a bullet: {outer!r}"
+    assert inner.startswith((" ", "\t")), f"inner item not indented: {inner!r}"

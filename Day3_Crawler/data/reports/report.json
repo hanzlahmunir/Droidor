@@ -1,13 +1,14 @@
 {
-  "generated_at": "2026-07-31T15:47:42.091121+00:00",
-  "total_urls_processed": 25,
+  "generated_at": "2026-08-04T15:41:07.688509+00:00",
+  "total_urls_processed": 26,
   "status_counts": {
     "bot_wall": 5,
+    "junk": 1,
     "stored": 20
   },
   "integrity": {
-    "total_records": 25,
-    "sum_of_status_counts": 25,
+    "total_records": 26,
+    "sum_of_status_counts": 26,
     "consistent": true
   },
   "duplicates": {
@@ -31,21 +32,23 @@
         "matches": []
       }
     },
-    "highest_similarity_among_kept": 0.1561
+    "highest_similarity_among_kept": 0.0176
   },
   "extraction": {
-    "failed_or_junk": 0,
-    "pct": 0.0,
+    "failed_or_junk": 1,
+    "pct": 3.8,
     "extraction_failed": {
       "count": 0,
       "pct": 0.0,
       "meaning": "Page fetched, but no article text came out of it."
     },
     "junk": {
-      "count": 0,
-      "pct": 0.0,
+      "count": 1,
+      "pct": 3.8,
       "meaning": "Text extracted, but it failed a quality rule.",
-      "by_rule": {}
+      "by_rule": {
+        "too_short": 1
+      }
     },
     "rules": {
       "too_short": "fewer than 300 characters",
@@ -63,126 +66,102 @@
     "no_date_found_at_all": 0,
     "found_but_unparseable": 0,
     "by_source": {
-      "rss": 20
+      "rss": 19,
+      "json_ld": 1
     },
     "unparseable_examples": []
   },
   "lengths": {
     "articles_measured": 20,
-    "mean_chars": 7812,
-    "median_chars": 8730,
-    "min_chars": 859,
-    "max_chars": 18928,
-    "mean_words": 1202
+    "mean_chars": 8407,
+    "median_chars": 9374,
+    "min_chars": 410,
+    "max_chars": 15568,
+    "mean_words": 1339
   },
   "structure_retention": {
-    "articles_with_headings": 10,
-    "articles_with_headings_pct": 50.0,
-    "total_headings": 99,
-    "articles_with_code_blocks": 9,
-    "total_code_blocks": 54,
-    "long_articles_without_headings": [
-      {
-        "url": "https://research.google/blog/symptomai-towards-a-conversational-ai-agent-for-everyday-symptom-assessment",
-        "chars": 11018,
-        "source": "research.google"
-      },
-      {
-        "url": "https://research.google/blog/towards-demystifying-the-creativity-of-diffusion-models",
-        "chars": 8924,
-        "source": "research.google"
-      },
-      {
-        "url": "https://research.google/blog/sensorfm-towards-a-general-intelligence-and-interface-for-wearable-health-data",
-        "chars": 8536,
-        "source": "research.google"
-      },
-      {
-        "url": "https://research.google/blog/towards-a-quantum-computer-that-learns-from-its-errors",
-        "chars": 7094,
-        "source": "research.google"
-      },
-      {
-        "url": "https://research.google/blog/science-one-framework-a-verifiable-autonomous-research-framework-via-chain-of-evidence",
-        "chars": 6250,
-        "source": "research.google"
-      }
-    ]
+    "articles_with_headings": 16,
+    "articles_with_headings_pct": 80.0,
+    "total_headings": 131,
+    "articles_with_code_blocks": 10,
+    "total_code_blocks": 41,
+    "total_list_items": 179,
+    "long_articles_without_headings": []
   },
   "five_shortest": [
     {
       "rank": 1,
-      "chars": 859,
-      "words": 142,
-      "title": "A quote from Bruce Schneier",
-      "url": "https://simonwillison.net/2026/Jul/30/bruce-schneier",
-      "api_document_id": 9,
-      "published_at": "2026-07-30T18:25:26+00:00",
-      "link_density": 0.3263,
-      "excerpt": "30th July 2026\n\n> The writing assignments I give my students are gym tasks, not work tasks. I ask them to write policy memos not because the world needs more policy memos. I assign them because the very act of writing, which includes thinking and outlining and drafting and editing, making and criticizing and revising arguments, will help develop the critical thinking skills they will need in their future careers. And without this constant mental exercise, those skills will atrophy. Employers are\n\n[already noticing].\n\n— [Bruce Schneier](https://www.schneier.com/blog/archives/2026/07/should-you-",
-      "truncated": true
+      "chars": 410,
+      "words": 76,
+      "title": "Don’t be a meat proxy",
+      "url": "https://simonwillison.net/2026/Aug/3/dont-be-a-meat-proxy",
+      "api_document_id": 7,
+      "published_at": "2026-08-03T23:45:04+00:00",
+      "link_density": 0.0599,
+      "excerpt": "**[Don't be a meat proxy](https://gruhn.me/blog/2026-08-03/)** ([via](https://lobste.rs/s/hfbqr3/don_t_be_meat_proxy#c_svolls \"Lobste.rs\")) Niklas Gruhn coins an excellent new term - **meat proxy** - for people who blindly copy and paste the output of AI systems to their peers.\n\n> By all means, prompt AI. But don't just relay the output. Read it, understand it, validate it, and then write a response in your own words (a decent certificate that you've done the prior steps). Making that effort is value you can add.",
+      "truncated": false
     },
     {
       "rank": 2,
-      "chars": 1453,
-      "words": 258,
-      "title": "Links to CSS colour palettes",
-      "url": "https://jvns.ca/blog/2026/05/04/css-colour-palettes",
-      "api_document_id": 4,
-      "published_at": "2026-05-04T00:00:00+00:00",
-      "link_density": 0.0965,
-      "excerpt": "# Links to CSS colour palettes\n\nA while back I decided to stop using Tailwind for new projects and to just write vanilla CSS instead.\n\nBut one thing I missed about Tailwind was the [colour palette](https://v2.tailwindcss.com/docs/customizing-colors#color-palette-reference) ([here as CSS](https://gist.github.com/jvns/9e59b2cd1fe12601084ba78dded072fe)).\nIf I wanted a light blue I could just use `blue-100` and if I didn’t like it\nmaybe try `blue-200` or `blue-50` . I’m not very good with colours so it makes\na big difference to me to have a reasonable colour palette that somebody who is\nbetter at ",
+      "chars": 539,
+      "words": 102,
+      "title": "A quote from Steve Yegge",
+      "url": "https://simonwillison.net/2026/Aug/4/steve-yegge",
+      "api_document_id": 6,
+      "published_at": "2026-08-04T00:42:45+00:00",
+      "link_density": 0.0389,
+      "excerpt": "> [Gas Town](https://yegge.ai/gastown.html) was intended to be reusable, but I only ever wound up using it to build itself. Gas Town fell apart at the seams with Opus 4.7. Up through 4.6 it was working brilliantly. With 4.7 we saw the introduction of the \"just two more things\" tic, which prevented Opus from ever converging on being ready to do real work—it always wanted to fiddle with Gas Town itself. The Opus tic never went away, so Gas Town effectively burned down. It had other problems, too, but 4.7 was the final straw.\n\n— [Steve Yegge](https://yegge.ai/essays/the-shape-of-things-to-come/),",
       "truncated": true
     },
     {
       "rank": 3,
-      "chars": 1557,
-      "words": 227,
-      "title": "Release: llm-chat-completions-server 0.1a0",
-      "url": "https://simonwillison.net/2026/Jul/30/llm-chat-completions-server",
-      "api_document_id": 10,
-      "published_at": "2026-07-30T15:43:16+00:00",
-      "link_density": 0.2132,
-      "excerpt": "30th July 2026\n\n[Release](https://simonwillison.net/elsewhere/release/)\n\n[llm-chat-completions-server 0.1a0](https://github.com/simonw/llm-chat-completions-server/releases/tag/0.1a0)— LLM plugin to serve an OpenAI Chat Completions API endpoint\n\nA key goal of the new content-addressable logs [in LLM 0.32rc1](https://simonwillison.net/2026/Jul/30/llm-rc1/) was being able to support OpenAI Chat Completion style requests where each incoming message extends the previous conversation, like this:\n\n```\ncurl http://localhost:8002/v1/chat/completions \\\n  -H 'Content-Type: application/json' \\\n  -d '{\n   ",
+      "chars": 1082,
+      "words": 202,
+      "title": "Comment: Devtools must be open source (exe.dev)",
+      "url": "https://simonwillison.net/2026/Aug/3/devtools-must-be-open-source-exedev",
+      "api_document_id": 8,
+      "published_at": "2026-08-03T15:30:38+00:00",
+      "link_density": 0.056,
+      "excerpt": "[Comment](https://simonwillison.net/elsewhere/comment/) [My comment](https://news.ycombinator.com/item?id=49156111#49156719) on [Devtools must be open source (exe.dev)](https://news.ycombinator.com/item?id=49156111) — Hacker News\n\nOne of the arguments for open source software for end-users has always been the freedom to examine and modify how that software works.\n\nThe reality for most people - even expert programmers - has been that the freedom is more about being able to lean on *other people* to do that. Most people can't justify the time commitment needed to read and then modify the code fo",
       "truncated": true
     },
     {
       "rank": 4,
-      "chars": 1601,
-      "words": 268,
-      "title": "Release: llm 0.32rc2",
-      "url": "https://simonwillison.net/2026/Jul/30/llm-rc2",
-      "api_document_id": 8,
-      "published_at": "2026-07-30T22:52:06+00:00",
-      "link_density": 0.2062,
-      "excerpt": "30th July 2026\n\nHot on the heels of [RC1](https://simonwillison.net/2026/Jul/30/llm-rc1/), this fixes a dependency issue and also adds two neat new features:\n\n> - The default model for users who have not set their own default is now [GPT-5.6 Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna). It was previously [GPT-4o mini](https://developers.openai.com/api/docs/models/gpt-4o-mini). Luna is a much better and more recent model, albeit slightly more expensive - $0.20 per million input tokens and $1.20 per million output tokens, compared to $0.15/$0.60 for 4o mini. You can switch b",
+      "chars": 1244,
+      "words": 207,
+      "title": "Release: condense-json 1.0",
+      "url": "https://simonwillison.net/2026/Aug/2/condense-json",
+      "api_document_id": 9,
+      "published_at": "2026-08-02T22:19:59+00:00",
+      "link_density": 0.0105,
+      "excerpt": "I'm trying to get braver at releasing 1.0 versions. This little library is a year and a half old now - I've applied some sensible and non-disruptive fixes and shipped the big 1.0 for it.\n\nHere's an example of what it can do, lifted from the README:\n\n```\n{\n  \"foo\": {\n    \"bar\": {\n      \"string\": \"This is a string with foxes in it\",\n      \"nested\": {\n        \"more\": [\"Here is a string\", \"another with foxes in it too\"]\n      }\n    }\n  }\n}\n```\n\nCombine that with a replacements object:\n\n```\n{\"1\": \"with foxes in it\"}\n```\n\nAnd `condense_json(input_json, replacements)` produces the following:\n\n```\n{\n ",
       "truncated": true
     },
     {
       "rank": 5,
-      "chars": 1977,
-      "words": 301,
-      "title": "Advancing the price-performance frontier with GPT‑5.6",
-      "url": "https://simonwillison.net/2026/Jul/30/luna-price-drop",
-      "api_document_id": 6,
-      "published_at": "2026-07-30T23:58:42+00:00",
-      "link_density": 0.1984,
-      "excerpt": "30th July 2026 - Link Blog\n\n** Advancing the price-performance frontier with GPT‑5.6** (\n\n[via](https://news.ycombinator.com/item?id=49112867)) Huge price drop from OpenAI today: GPT-5.6 Terra got a 20% reduction, and GPT-5.6 Luna got a massive 80% drop.\n\nOpenAI credit 5.6 Sol with enabling this: in [How GPT‑5.6 fuses frontier intelligence with frontier efficiency](https://openai.com/index/gpt-5-6-frontier-intelligence-efficiency/) they describe using 5.6 Sol to optimize load balancing, and more impressively to optimize inference itself:\n\n> We also used GPT‑5.6 Sol to optimize the model’s forw",
+      "chars": 1555,
+      "words": 282,
+      "title": "Links to CSS colour palettes",
+      "url": "https://jvns.ca/blog/2026/05/04/css-colour-palettes",
+      "api_document_id": 4,
+      "published_at": "2026-05-04T00:00:00+00:00",
+      "link_density": 0.2065,
+      "excerpt": "A while back I decided to stop using Tailwind for new projects and to just write\nvanilla CSS instead.\n\nBut one thing I missed about Tailwind was the [colour palette](https://v2.tailwindcss.com/docs/customizing-colors#color-palette-reference) ([here as CSS](https://gist.github.com/jvns/9e59b2cd1fe12601084ba78dded072fe)).\nIf I wanted a light blue I could just use `blue-100` and if I didn’t like it\nmaybe try `blue-200` or `blue-50`. I’m not very good with colours so it makes\na big difference to me to have a reasonable colour palette that somebody who is\nbetter at colour than me has thought about.",
       "truncated": true
     }
   ],
   "blocked": {
-    "paywall_partial": {
+    "login_required": {
       "count": 0,
       "pct": 0.0
     },
-    "login_required": {
+    "paywall_partial": {
       "count": 0,
       "pct": 0.0
     },
     "bot_wall": {
       "count": 5,
-      "pct": 20.0
+      "pct": 19.2
     }
   },
   "refused_before_fetch": {
@@ -190,11 +169,11 @@
       "count": 0,
       "pct": 0.0
     },
-    "invalid_url": {
+    "robots_disallowed": {
       "count": 0,
       "pct": 0.0
     },
-    "robots_disallowed": {
+    "invalid_url": {
       "count": 0,
       "pct": 0.0
     }
@@ -206,7 +185,7 @@
     },
     "simonwillison.net": {
       "attempted": 5,
-      "stored": 5
+      "stored": 4
     },
     "hacks.mozilla.org": {
       "attempted": 5,
@@ -219,6 +198,10 @@
     "research.google": {
       "attempted": 5,
       "stored": 5
+    },
+    "www.claudedirectory.org": {
+      "attempted": 1,
+      "stored": 1
     }
   }
 }
