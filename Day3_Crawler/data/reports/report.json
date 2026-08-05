@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-04T15:41:07.688509+00:00",
+  "generated_at": "2026-08-05T09:40:49.418392+00:00",
   "total_urls_processed": 26,
   "status_counts": {
     "bot_wall": 5,
@@ -32,7 +32,7 @@
         "matches": []
       }
     },
-    "highest_similarity_among_kept": 0.0176
+    "highest_similarity_among_kept": 0.0197
   },
   "extraction": {
     "failed_or_junk": 1,
@@ -47,7 +47,8 @@
       "pct": 3.8,
       "meaning": "Text extracted, but it failed a quality rule.",
       "by_rule": {
-        "too_short": 1
+        "too_short": 1,
+        "high_link_density": 1
       }
     },
     "rules": {
@@ -73,72 +74,48 @@
   },
   "lengths": {
     "articles_measured": 20,
-    "mean_chars": 8407,
+    "mean_chars": 8777,
     "median_chars": 9374,
-    "min_chars": 410,
+    "min_chars": 592,
     "max_chars": 15568,
-    "mean_words": 1339
+    "mean_words": 1391
   },
   "structure_retention": {
-    "articles_with_headings": 16,
-    "articles_with_headings_pct": 80.0,
-    "total_headings": 131,
-    "articles_with_code_blocks": 10,
-    "total_code_blocks": 41,
-    "total_list_items": 179,
+    "articles_with_headings": 18,
+    "articles_with_headings_pct": 90.0,
+    "total_headings": 139,
+    "articles_with_code_blocks": 11,
+    "total_code_blocks": 46,
+    "total_list_items": 181,
     "long_articles_without_headings": []
   },
   "five_shortest": [
     {
       "rank": 1,
-      "chars": 410,
-      "words": 76,
-      "title": "Don’t be a meat proxy",
-      "url": "https://simonwillison.net/2026/Aug/3/dont-be-a-meat-proxy",
-      "api_document_id": 7,
-      "published_at": "2026-08-03T23:45:04+00:00",
-      "link_density": 0.0599,
-      "excerpt": "**[Don't be a meat proxy](https://gruhn.me/blog/2026-08-03/)** ([via](https://lobste.rs/s/hfbqr3/don_t_be_meat_proxy#c_svolls \"Lobste.rs\")) Niklas Gruhn coins an excellent new term - **meat proxy** - for people who blindly copy and paste the output of AI systems to their peers.\n\n> By all means, prompt AI. But don't just relay the output. Read it, understand it, validate it, and then write a response in your own words (a decent certificate that you've done the prior steps). Making that effort is value you can add.",
-      "truncated": false
+      "chars": 592,
+      "words": 112,
+      "title": "A quote from Steve Yegge",
+      "url": "https://simonwillison.net/2026/Aug/4/steve-yegge",
+      "api_document_id": 9,
+      "published_at": "2026-08-04T00:42:45+00:00",
+      "link_density": 0.0983,
+      "excerpt": "4th August 2026\n\n> [Gas Town](https://yegge.ai/gastown.html) was intended to be reusable, but I only ever wound up using it to build itself. Gas Town fell apart at the seams with Opus 4.7. Up through 4.6 it was working brilliantly. With 4.7 we saw the introduction of the \"just two more things\" tic, which prevented Opus from ever converging on being ready to do real work—it always wanted to fiddle with Gas Town itself. The Opus tic never went away, so Gas Town effectively burned down. It had other problems, too, but 4.7 was the final straw.\n\n— [Steve Yegge](https://yegge.ai/essays/the-shape-of-",
+      "truncated": true
     },
     {
       "rank": 2,
-      "chars": 539,
-      "words": 102,
-      "title": "A quote from Steve Yegge",
-      "url": "https://simonwillison.net/2026/Aug/4/steve-yegge",
-      "api_document_id": 6,
-      "published_at": "2026-08-04T00:42:45+00:00",
-      "link_density": 0.0389,
-      "excerpt": "> [Gas Town](https://yegge.ai/gastown.html) was intended to be reusable, but I only ever wound up using it to build itself. Gas Town fell apart at the seams with Opus 4.7. Up through 4.6 it was working brilliantly. With 4.7 we saw the introduction of the \"just two more things\" tic, which prevented Opus from ever converging on being ready to do real work—it always wanted to fiddle with Gas Town itself. The Opus tic never went away, so Gas Town effectively burned down. It had other problems, too, but 4.7 was the final straw.\n\n— [Steve Yegge](https://yegge.ai/essays/the-shape-of-things-to-come/),",
+      "chars": 1135,
+      "words": 162,
+      "title": "Release: llm-anthropic 0.26",
+      "url": "https://simonwillison.net/2026/Aug/4/llm-anthropic",
+      "api_document_id": 7,
+      "published_at": "2026-08-04T22:00:58+00:00",
+      "link_density": 0.0845,
+      "excerpt": "4th August 2026\n\n[Release](https://simonwillison.net/elsewhere/release/)\n[llm-anthropic 0.26](https://github.com/simonw/llm-anthropic/releases/tag/0.26)\n— LLM access to models by Anthropic, including the Claude series\n\nIncludes new features enabled by [LLM 0.32](https://simonwillison.net/2026/Aug/4/new-release-of-llm/):\n\n> - New models: `claude-fable-5`, `claude-sonnet-5`, and `claude-opus-5`. [#75](https://github.com/simonw/llm-anthropic/issues/75), [#76](https://github.com/simonw/llm-anthropic/issues/76)\n> - Added server-side tools for `WebSearch`, `WebFetch`, `CodeExecution`, and `Anthropic",
       "truncated": true
     },
     {
       "rank": 3,
-      "chars": 1082,
-      "words": 202,
-      "title": "Comment: Devtools must be open source (exe.dev)",
-      "url": "https://simonwillison.net/2026/Aug/3/devtools-must-be-open-source-exedev",
-      "api_document_id": 8,
-      "published_at": "2026-08-03T15:30:38+00:00",
-      "link_density": 0.056,
-      "excerpt": "[Comment](https://simonwillison.net/elsewhere/comment/) [My comment](https://news.ycombinator.com/item?id=49156111#49156719) on [Devtools must be open source (exe.dev)](https://news.ycombinator.com/item?id=49156111) — Hacker News\n\nOne of the arguments for open source software for end-users has always been the freedom to examine and modify how that software works.\n\nThe reality for most people - even expert programmers - has been that the freedom is more about being able to lean on *other people* to do that. Most people can't justify the time commitment needed to read and then modify the code fo",
-      "truncated": true
-    },
-    {
-      "rank": 4,
-      "chars": 1244,
-      "words": 207,
-      "title": "Release: condense-json 1.0",
-      "url": "https://simonwillison.net/2026/Aug/2/condense-json",
-      "api_document_id": 9,
-      "published_at": "2026-08-02T22:19:59+00:00",
-      "link_density": 0.0105,
-      "excerpt": "I'm trying to get braver at releasing 1.0 versions. This little library is a year and a half old now - I've applied some sensible and non-disruptive fixes and shipped the big 1.0 for it.\n\nHere's an example of what it can do, lifted from the README:\n\n```\n{\n  \"foo\": {\n    \"bar\": {\n      \"string\": \"This is a string with foxes in it\",\n      \"nested\": {\n        \"more\": [\"Here is a string\", \"another with foxes in it too\"]\n      }\n    }\n  }\n}\n```\n\nCombine that with a replacements object:\n\n```\n{\"1\": \"with foxes in it\"}\n```\n\nAnd `condense_json(input_json, replacements)` produces the following:\n\n```\n{\n ",
-      "truncated": true
-    },
-    {
-      "rank": 5,
       "chars": 1555,
       "words": 282,
       "title": "Links to CSS colour palettes",
@@ -148,6 +125,30 @@
       "link_density": 0.2065,
       "excerpt": "A while back I decided to stop using Tailwind for new projects and to just write\nvanilla CSS instead.\n\nBut one thing I missed about Tailwind was the [colour palette](https://v2.tailwindcss.com/docs/customizing-colors#color-palette-reference) ([here as CSS](https://gist.github.com/jvns/9e59b2cd1fe12601084ba78dded072fe)).\nIf I wanted a light blue I could just use `blue-100` and if I didn’t like it\nmaybe try `blue-200` or `blue-50`. I’m not very good with colours so it makes\na big difference to me to have a reasonable colour palette that somebody who is\nbetter at colour than me has thought about.",
       "truncated": true
+    },
+    {
+      "rank": 4,
+      "chars": 1635,
+      "words": 229,
+      "title": "PipeNetwork/minimax-h3-mlx",
+      "url": "https://simonwillison.net/2026/Aug/4/minimax-h3-mlx",
+      "api_document_id": 8,
+      "published_at": "2026-08-04T19:10:09+00:00",
+      "link_density": 0.0361,
+      "excerpt": "**[PipeNetwork/minimax-h3-mlx](https://github.com/PipeNetwork/minimax-h3-mlx)**. MiniMax released [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) two days ago - they describe it as a \"a general-purpose, omni-modal generative system\", which in practice means it accepts text, images, audio and video and can use them to generate up to 15 second video clips with audio included.\n\nThis Python package ports it to MLX for running on Apple Silicon.\n\nI got it running on my M5 Max MacBook Pro. I cloned the repo and ran the model like this:\n\n```\n# First download the models\nuvx --from huggingface",
+      "truncated": true
+    },
+    {
+      "rank": 5,
+      "chars": 5683,
+      "words": 1016,
+      "title": "Learning a few things about running SQLite",
+      "url": "https://jvns.ca/blog/2026/07/17/learning-about-running-sqlite",
+      "api_document_id": 2,
+      "published_at": "2026-07-17T00:00:00+00:00",
+      "link_density": 0.0645,
+      "excerpt": "Hello! I’ve been working on a Django site recently, and I decided to use SQLite\nas the database.\nWhen I was getting started with using SQLite as database for a website I read a [bunch](https://alldjango.com/articles/definitive-guide-to-using-django-sqlite-in-production)\nof blog posts about how it is totally fine to use SQLite in production for a\nsmall site and I think it *is* totally fine, but what I did not fully appreciate\nis that SQLite is still a database, databases are complicated, and I do not know\na lot about operating databases.\n\nSo here are a couple of small things I’ve been learning ",
+      "truncated": true
     }
   ],
   "blocked": {
@@ -155,13 +156,13 @@
       "count": 0,
       "pct": 0.0
     },
-    "paywall_partial": {
-      "count": 0,
-      "pct": 0.0
-    },
     "bot_wall": {
       "count": 5,
       "pct": 19.2
+    },
+    "paywall_partial": {
+      "count": 0,
+      "pct": 0.0
     }
   },
   "refused_before_fetch": {
@@ -169,11 +170,11 @@
       "count": 0,
       "pct": 0.0
     },
-    "robots_disallowed": {
+    "invalid_url": {
       "count": 0,
       "pct": 0.0
     },
-    "invalid_url": {
+    "robots_disallowed": {
       "count": 0,
       "pct": 0.0
     }

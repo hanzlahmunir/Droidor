@@ -261,13 +261,24 @@ unrelated reasons, which would have been easy to accept.
 **Result:** 109 headings and 108 code fences retained across the corpus, up
 from zero. One extra article now passes the quality gate (20 stored, was 19).
 
-**What was NOT fixed, and why.** All five `research.google` articles still
-have zero headings. Their markup puts headings in `div.component-intro` and
-the article body in `div.blog-summary` — different DOM branches — so an
-extractor that selects one content container cannot associate them. A
-site-specific rule would fix it and would rot at their next redesign, so it is
-**reported in REPORT.md** as a named limitation instead. The report now counts
-structure retention and lists long articles that came out with no headings.
+**What was NOT fixed at the time.** All five `research.google` articles still
+had zero headings. Their markup puts headings in `div.component-intro` and the
+article body in `div.blog-summary` — different DOM branches — so an extractor
+that selects one content container could not associate them. A site-specific
+rule would have fixed it and would have rotted at their next redesign, so it
+was reported as a named limitation instead.
+
+> **Superseded.** The DOM-rendering rewrite (bug −4 above) fixed this without
+> any site-specific rule: a 60-article crawl of research.google now yields
+> headings on **58 of 60**, 383 in total. The limitation text has been removed
+> from README.md and from the report generator — a limitation that no longer
+> exists misleads a reader exactly as much as an undocumented one does.
+>
+> Worth noting *why* it was fixed by accident: the old approach asked
+> trafilatura for text and tried to reattach structure afterwards, so
+> anything outside its chosen container was unrecoverable. Rendering the
+> original DOM subtree keeps whatever the container actually holds. Fixing
+> the root cause fixed a symptom that had been written off as unfixable.
 
 ### 0. The UI shipped broken, and every automated check said it was fine
 
@@ -398,6 +409,65 @@ Feeds are more patient than articles on purpose: a failed feed loses every
 article behind it.
 
 ---
+
+## Limits, measured by testing rather than guessed
+
+Two scale tests were run deliberately to find where this breaks.
+
+### Test A — 100 separate pages from one host
+
+`crawler feed research.google/blog/rss --limit 100`:
+
+```text
+100 URLs processed:
+   60  stored
+   40  rate_limited
+```
+
+**The rate limiter did exactly what it exists for.** It stopped at 60/60 for
+the host and refused the remaining 40 with a real retry time ("about 57 min")
+rather than continuing to hit Google. Of the 60 fetched: **0 junk, 0
+extraction failures**, 383 headings, 214 list items, 100% with a publish
+date, 0 boilerplate leaked, max near-duplicate similarity 0.033.
+
+Throughput was 60 pages in 174s (~2.9s/page) — essentially all politeness
+delay, which is the intended cost.
+
+### Test B — single documents, as long as they get
+
+| Document | Stored chars | Words | ~Pages | Headings | Result |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Moby Dick (full novel) | 1,219,826 | 213,355 | ~609 | 146 | stored |
+| A Survey of Large Language Models (arXiv) | 1,034,869 | 135,945 | ~413 | 121 | stored |
+| Django QuerySet API reference | 128,037 | 17,713 | ~50 | 131 | stored |
+| GPT-4 Technical Report (arXiv) | 119,378 | 18,306 | ~47 | 33 | stored |
+| PEP 8 | 47,112 | 7,096 | ~19 | 118 | stored |
+| git-scm.com book index | 3,013 | — | — | 0 | **junk** |
+
+Both million-character documents came out complete, not truncated: Moby Dick
+opens on "Call me Ishmael" and closes on the epilogue's final line; the
+Survey ends at reference [1081]. Section hierarchy survives
+(`# Title` → `## 1 Introduction` → `### 2.1 Background`).
+
+**The one rejection was correct.** `git-scm.com/book/en/v2` is a table of
+contents, not a chapter: 168 links, 130 list items, **7 paragraphs**, 4,505
+characters of text. Link density 0.73 → junk. A page of links to chapters is
+not an article, and the gate said so.
+
+### The two real limits
+
+**One transaction per run.** `session_scope()` wraps an entire run, so nothing
+commits until it finishes. Visible during Test A: the database showed zero
+rows for three minutes while 60 pages were being fetched. At 25 pages "a run
+rolls back as a unit" is a defensible property; at 100+ it means a crash on
+the last page loses everything before it, and there is no progress to watch.
+The fix is committing per URL or in batches. Not done yet, and stated here
+rather than discovered by whoever runs it next.
+
+**5 MB response cap** (`MAX_CONTENT_BYTES`). A 1.45 MB novel passes
+comfortably; anything larger than 5 MB is refused. The cap exists because an
+article is text and a 50 MB response is a video, a dump, or a trap — but it
+is a real ceiling and it is tunable in `.env`.
 
 ## Design decisions
 

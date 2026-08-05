@@ -589,11 +589,10 @@ def to_markdown(report: Report, config: Config) -> str:
             add(f"| {item['url']} | {item['chars']} |")
         add("")
         add(
-            "Known cause for `research.google`: its headings sit in a "
-            "different DOM branch (`div.component-intro`) from its article "
-            "body (`div.blog-summary`), so an extractor that selects one "
-            "content container cannot associate them. Reported rather than "
-            "worked around with a site-specific rule."
+            "A long article with no headings usually means the page genuinely "
+            "has none (a single-section post, a press release), or the "
+            "extractor selected a container that excludes them. Worth opening "
+            "to check which."
         )
         add("")
 

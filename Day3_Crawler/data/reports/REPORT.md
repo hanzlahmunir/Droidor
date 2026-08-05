@@ -1,6 +1,6 @@
 # Data Quality Report
 
-Generated: 2026-08-04 15:41 UTC
+Generated: 2026-08-05 09:40 UTC
 
 Every number below is computed by counting rows in `crawl_records`, not written by hand. Re-run `report` to regenerate it.
 
@@ -13,7 +13,7 @@ Every number below is computed by counting rows in `crawl_records`, not written 
 | Duplicates | 0 (0.0%) |
 | Extraction failed or junk | 1 (3.8%) |
 | Missing/unparseable date (of stored) | 0 (0.0%) |
-| Mean article length | 8407 chars |
+| Mean article length | 8777 chars |
 | Median article length | 9374 chars |
 
 ## Every outcome
@@ -40,7 +40,7 @@ different things and have different reliability:
 | `content_sha256` | 0 | 0.0% | SHA-256 of the whitespace-normalised article text. Catches syndicated copies under different URLs. |
 | `near_duplicate` | 0 | 0.0% | Jaccard similarity over 5-word shingles, threshold 85%. |
 
-Highest similarity among articles we KEPT: **1.8%** (threshold 85%). 
+Highest similarity among articles we KEPT: **2.0%** (threshold 85%). 
 That is comfortably below the threshold, so no kept article is a borderline call.
 
 ## Extraction failures and junk
@@ -57,6 +57,7 @@ Which rule rejected them (one document can fail several):
 | Rule | Times fired | Definition |
 | --- | ---: | --- |
 | `too_short` | 1 | fewer than 300 characters |
+| `high_link_density` | 1 | more than 35% of characters inside <a> tags |
 
 ## Publish dates
 
@@ -80,12 +81,12 @@ Where the dates actually came from (ladder, most authoritative first):
 
 | Metric | Characters |
 | --- | ---: |
-| Mean | 8407 |
+| Mean | 8777 |
 | Median | 9374 |
-| Shortest | 410 |
+| Shortest | 592 |
 | Longest | 15568 |
 
-Mean words per article: 1339.
+Mean words per article: 1391.
 
 ## Structure retained
 
@@ -93,103 +94,56 @@ Clean text is not the whole job: an article stripped down to undifferentiated pa
 
 | Metric | Value |
 | --- | ---: |
-| Articles with headings | 16 of 20 (80.0%) |
-| Total headings kept | 131 |
-| Articles with code blocks | 10 |
-| Total code blocks kept | 41 |
-| Total list items kept | 179 |
+| Articles with headings | 18 of 20 (90.0%) |
+| Total headings kept | 139 |
+| Articles with code blocks | 11 |
+| Total code blocks kept | 46 |
+| Total list items kept | 181 |
 
 ## The 5 shortest articles
 
 The brief predicts these are usually garbage, so they are quoted here rather than just listed — judge for yourself.
 
-### 1. Don’t be a meat proxy
+### 1. A quote from Steve Yegge
 
-- **410 chars**, 76 words
-- URL: https://simonwillison.net/2026/Aug/3/dont-be-a-meat-proxy
-- Stored as document `#7`
-- Publish date: 2026-08-03T23:45:04+00:00
-- Link density: 0.06
-
-```text
-**[Don't be a meat proxy](https://gruhn.me/blog/2026-08-03/)** ([via](https://lobste.rs/s/hfbqr3/don_t_be_meat_proxy#c_svolls "Lobste.rs")) Niklas Gruhn coins an excellent new term - **meat proxy** - for people who blindly copy and paste the output of AI systems to their peers.
-
-> By all means, prompt AI. But don't just relay the output. Read it, understand it, validate it, and then write a response in your own words (a decent certificate that you've done the prior steps). Making that effort is value you can add.
-```
-
-### 2. A quote from Steve Yegge
-
-- **539 chars**, 102 words
+- **592 chars**, 112 words
 - URL: https://simonwillison.net/2026/Aug/4/steve-yegge
-- Stored as document `#6`
+- Stored as document `#9`
 - Publish date: 2026-08-04T00:42:45+00:00
-- Link density: 0.04
+- Link density: 0.10
 
 ```text
+4th August 2026
+
 > [Gas Town](https://yegge.ai/gastown.html) was intended to be reusable, but I only ever wound up using it to build itself. Gas Town fell apart at the seams with Opus 4.7. Up through 4.6 it was working brilliantly. With 4.7 we saw the introduction of the "just two more things" tic, which prevented Opus from ever converging on being ready to do real work—it always wanted to fiddle with Gas Town itself. The Opus tic never went away, so Gas Town effectively burned down. It had other problems, too, but 4.7 was the final straw.
 
-— [Steve Yegge](https://yegge.ai/essays/the-shape-of-things-to-come/),
+— [Steve Yegge](https://yegge.ai/essays/the-shape-of-
 ...[truncated]
 ```
 
-### 3. Comment: Devtools must be open source (exe.dev)
+### 2. Release: llm-anthropic 0.26
 
-- **1082 chars**, 202 words
-- URL: https://simonwillison.net/2026/Aug/3/devtools-must-be-open-source-exedev
-- Stored as document `#8`
-- Publish date: 2026-08-03T15:30:38+00:00
-- Link density: 0.06
+- **1135 chars**, 162 words
+- URL: https://simonwillison.net/2026/Aug/4/llm-anthropic
+- Stored as document `#7`
+- Publish date: 2026-08-04T22:00:58+00:00
+- Link density: 0.08
 
 ```text
-[Comment](https://simonwillison.net/elsewhere/comment/) [My comment](https://news.ycombinator.com/item?id=49156111#49156719) on [Devtools must be open source (exe.dev)](https://news.ycombinator.com/item?id=49156111) — Hacker News
+4th August 2026
 
-One of the arguments for open source software for end-users has always been the freedom to examine and modify how that software works.
+[Release](https://simonwillison.net/elsewhere/release/)
+[llm-anthropic 0.26](https://github.com/simonw/llm-anthropic/releases/tag/0.26)
+— LLM access to models by Anthropic, including the Claude series
 
-The reality for most people - even expert programmers - has been that the freedom is more about being able to lean on *other people* to do that. Most people can't justify the time commitment needed to read and then modify the code fo
+Includes new features enabled by [LLM 0.32](https://simonwillison.net/2026/Aug/4/new-release-of-llm/):
+
+> - New models: `claude-fable-5`, `claude-sonnet-5`, and `claude-opus-5`. [#75](https://github.com/simonw/llm-anthropic/issues/75), [#76](https://github.com/simonw/llm-anthropic/issues/76)
+> - Added server-side tools for `WebSearch`, `WebFetch`, `CodeExecution`, and `Anthropic
 ...[truncated]
 ```
 
-### 4. Release: condense-json 1.0
-
-- **1244 chars**, 207 words
-- URL: https://simonwillison.net/2026/Aug/2/condense-json
-- Stored as document `#9`
-- Publish date: 2026-08-02T22:19:59+00:00
-- Link density: 0.01
-
-```text
-I'm trying to get braver at releasing 1.0 versions. This little library is a year and a half old now - I've applied some sensible and non-disruptive fixes and shipped the big 1.0 for it.
-
-Here's an example of what it can do, lifted from the README:
-
-```
-{
-  "foo": {
-    "bar": {
-      "string": "This is a string with foxes in it",
-      "nested": {
-        "more": ["Here is a string", "another with foxes in it too"]
-      }
-    }
-  }
-}
-```
-
-Combine that with a replacements object:
-
-```
-{"1": "with foxes in it"}
-```
-
-And `condense_json(input_json, replacements)` produces the following:
-
-```
-{
- 
-...[truncated]
-```
-
-### 5. Links to CSS colour palettes
+### 3. Links to CSS colour palettes
 
 - **1555 chars**, 282 words
 - URL: https://jvns.ca/blog/2026/05/04/css-colour-palettes
@@ -206,6 +160,48 @@ If I wanted a light blue I could just use `blue-100` and if I didn’t like it
 maybe try `blue-200` or `blue-50`. I’m not very good with colours so it makes
 a big difference to me to have a reasonable colour palette that somebody who is
 better at colour than me has thought about.
+...[truncated]
+```
+
+### 4. PipeNetwork/minimax-h3-mlx
+
+- **1635 chars**, 229 words
+- URL: https://simonwillison.net/2026/Aug/4/minimax-h3-mlx
+- Stored as document `#8`
+- Publish date: 2026-08-04T19:10:09+00:00
+- Link density: 0.04
+
+```text
+**[PipeNetwork/minimax-h3-mlx](https://github.com/PipeNetwork/minimax-h3-mlx)**. MiniMax released [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) two days ago - they describe it as a "a general-purpose, omni-modal generative system", which in practice means it accepts text, images, audio and video and can use them to generate up to 15 second video clips with audio included.
+
+This Python package ports it to MLX for running on Apple Silicon.
+
+I got it running on my M5 Max MacBook Pro. I cloned the repo and ran the model like this:
+
+```
+# First download the models
+uvx --from huggingface
+...[truncated]
+```
+
+### 5. Learning a few things about running SQLite
+
+- **5683 chars**, 1016 words
+- URL: https://jvns.ca/blog/2026/07/17/learning-about-running-sqlite
+- Stored as document `#2`
+- Publish date: 2026-07-17T00:00:00+00:00
+- Link density: 0.06
+
+```text
+Hello! I’ve been working on a Django site recently, and I decided to use SQLite
+as the database.
+When I was getting started with using SQLite as database for a website I read a [bunch](https://alldjango.com/articles/definitive-guide-to-using-django-sqlite-in-production)
+of blog posts about how it is totally fine to use SQLite in production for a
+small site and I think it *is* totally fine, but what I did not fully appreciate
+is that SQLite is still a database, databases are complicated, and I do not know
+a lot about operating databases.
+
+So here are a couple of small things I’ve been learning 
 ...[truncated]
 ```
 
