@@ -1,0 +1,157 @@
+# ONE COMMAND:  docker compose up
+#
+# That brings up the whole system in dependency order:
+#   1. db      Postgres, holding Day 1's documents table -- the corpus.
+#   2. api     the Day 1 Documents API, built from ../Day1_Documents-API.
+#   3. ui      the question-answering interface, on http://localhost:8501
+#
+# WHY THE DAY 1 API IS BUILT FROM SOURCE RATHER THAN COPIED IN.
+# `build: ../Day1_Documents-API` means Day 4 runs the REAL Day 1 code, at
+# whatever revision it currently is. Copying it would fork it, and the fork
+# would drift silently. Day 3 established this and the reasoning is unchanged.
+#
+# NOTE ON STORAGE. Day 4 adds NO database of its own. The chunk embeddings
+# live in Chroma, which persists to a directory rather than a server -- so
+# unlike Day 3 there is no second Postgres database and no Alembic migration
+# here. That is a deliberate break from Days 1-3 and is written up in the
+# README: the trade is losing schema-under-version-control in exchange for a
+# store that needs no extension and no migration.
+#
+# Ingestion is NOT started by `up`. It reads the whole corpus and computes
+# embeddings for it, which is a deliberate act with a real cost, not something
+# that should happen every time someone starts the stack:
+#
+#   docker compose run --rm rag ingest          # corpus -> chunks -> vectors
+#   docker compose run --rm rag ask "..."       # the deliverable
+#   docker compose run --rm rag eval            # measured retrieval quality
+#   docker compose run --rm rag stats           # what is indexed
+#   docker compose run --rm tests               # offline test suite
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-docuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docpass}
+      POSTGRES_DB: ${POSTGRES_DB:-documents}
+    volumes:
+      # Day 3's volume, not a new one. See the note at the bottom of this file.
+      - day3_crawler_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Everything downstream waits on this. pg_isready returns 0 only once
+      # Postgres actually accepts connections, which is later than "the
+      # container started".
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-docuser} -d ${POSTGRES_DB:-documents}"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  api:
+    # The real Day 1 code, not a copy. See the note at the top.
+    build: ../Day1_Documents-API
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-docuser}:${POSTGRES_PASSWORD:-docpass}@db:5432/${POSTGRES_DB:-documents}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      # Exposed so the corpus can be inspected with curl as well as through
+      # the UI -- useful when checking whether a citation's article is really
+      # in the corpus.
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  ui:
+    build: .
+    environment:
+      API_BASE_URL: http://api:8000
+      CHROMA_DIR: /app/chroma_db
+      # Required to generate answers. Retrieval works without it; `ask` says
+      # which half is unavailable rather than failing obscurely.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      # The retrieval knobs. Set here so they can be changed in .env without
+      # rebuilding -- which is the whole point of them being config.
+      CHUNK_SIZE: ${CHUNK_SIZE:-700}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-150}
+      TOP_K: ${TOP_K:-5}
+      SIMILARITY_FLOOR: ${SIMILARITY_FLOOR:-0.40}
+      ANSWER_MODEL: ${ANSWER_MODEL:-openai/gpt-oss-120b}
+    depends_on:
+      api:
+        # Not just "started": the UI's first action is to call /health, and
+        # Day 1 runs its migrations before it serves.
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    volumes:
+      # The vector store, on the host so it survives `docker compose down` and
+      # is shared with the `rag` service below -- otherwise `run --rm rag
+      # ingest` would write into a container that is then discarded, and the
+      # UI would find an empty collection.
+      - ./chroma_db:/app/chroma_db
+      # Eval questions in, reports out.
+      - ./data:/app/data
+
+  # The CLI. `run --rm`, not a long-running service.
+  rag:
+    build: .
+    profiles: ["cli"]
+    environment:
+      API_BASE_URL: http://api:8000
+      CHROMA_DIR: /app/chroma_db
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      CHUNK_SIZE: ${CHUNK_SIZE:-700}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-150}
+      TOP_K: ${TOP_K:-5}
+      SIMILARITY_FLOOR: ${SIMILARITY_FLOOR:-0.40}
+      ANSWER_MODEL: ${ANSWER_MODEL:-openai/gpt-oss-120b}
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      # Same two mounts as the UI, and they MUST match: this service writes
+      # the vector store that the UI reads.
+      - ./chroma_db:/app/chroma_db
+      - ./data:/app/data
+    # Overrides the UI entrypoint. ENTRYPOINT (not CMD) means arguments append
+    # rather than replace, so `run --rm rag ask "question"` works -- the fix
+    # Day 2 needed after `--mode simple` was parsed as a binary name.
+    entrypoint: ["python", "-m", "app.cli"]
+
+  # Offline test suite: no network, no API key, no database, no LLM.
+  #   docker compose run --rm tests
+  tests:
+    build: .
+    profiles: ["cli"]
+    environment:
+      # Deliberately NOT given a GROQ_API_KEY: the suite must pass without
+      # one, which is what proves the tests are genuinely offline.
+      CHROMA_DIR: /tmp/chroma_test
+    entrypoint: ["python", "-m", "pytest", "-v"]
+
+volumes:
+  # THE CORPUS LIVES IN DAY 3's VOLUME, and Day 4 attaches to it rather than
+  # creating its own.
+  #
+  # Compose namespaces volumes by project, so a plain `pgdata:` here would
+  # create `day4_rag_pgdata` -- a brand new, EMPTY Postgres. The API would come
+  # up healthy, `GET /documents` would return `[]`, and ingestion would index
+  # nothing. That is a confusing failure: every container is green and the
+  # corpus is simply absent.
+  #
+  # `external: true` says the volume already exists and must not be created.
+  # If it is missing, compose fails immediately with a clear error instead of
+  # silently starting an empty database -- which is the behaviour worth having,
+  # because "no articles" should never be something you discover at query time.
+  #
+  # The trade-off, stated plainly: Day 4 is now coupled to Day 3 having been
+  # run. That is the correct coupling for a system whose entire input is Day 3's
+  # output -- the same reasoning that has Day 3 BUILD the Day 1 API from source
+  # rather than copying it. One corpus, one source of truth: re-crawling in Day
+  # 3 is immediately visible here, with no copy to drift.
+  day3_crawler_pgdata:
+    external: true

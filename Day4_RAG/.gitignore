@@ -1,0 +1,19 @@
+# The Chroma persistence directory: the chunk embeddings.
+#
+# NOT committed, for three reasons:
+#   1. It is derived data. `ingest` rebuilds it from the Day 1 API in about a
+#      minute, so committing it would be storing a cache in version control.
+#   2. It is bulky and binary -- a SQLite file plus index segments. It has no
+#      review value: a diff of it says nothing a human can read.
+#   3. It embeds other people's article text, which is a different act from
+#      caching it locally.
+chroma_db/
+
+# Evaluation output. The eval RESULT is committed (see below) because it is the
+# evidence for the tuned similarity floor, but the raw per-question dump is
+# regenerable noise.
+data/eval_runs/
+
+# The generated evaluation report IS committed: it is the deliverable that
+# justifies SIMILARITY_FLOOR, and the README quotes its numbers.
+!data/reports/

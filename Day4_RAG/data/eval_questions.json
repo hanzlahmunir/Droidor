@@ -1,0 +1,142 @@
+{
+  "_comment": [
+    "The evaluation set. Two kinds of question, and BOTH are required to say",
+    "anything useful about this system.",
+    "",
+    "  answerable   the corpus contains the answer. `expect_sources` lists the",
+    "               article title(s) that should be retrieved. Measures whether",
+    "               retrieval FINDS the right evidence.",
+    "",
+    "  unanswerable the corpus does not cover it. The system must refuse.",
+    "               Measures whether the gate actually holds.",
+    "",
+    "Measuring only the first kind is the classic mistake: a system with the",
+    "similarity floor set to -1 scores 100% on answerable questions and is",
+    "completely useless, because it also answers everything else confidently",
+    "and wrongly. The two rates trade against each other, and the floor is",
+    "chosen from that trade-off rather than guessed -- see `rag eval`.",
+    "",
+    "The unanswerable questions are deliberately NOT random trivia. They are",
+    "adjacent to the corpus -- same fields, same vocabulary, plausible things",
+    "to ask a system built on these articles. 'What is the capital of France?'",
+    "is easy to refuse and proves almost nothing; 'What is Postgres's default",
+    "isolation level?' is the honest test, because the corpus is full of",
+    "database talk that scores well without containing the answer.",
+    "",
+    "Ground truth was established by reading the articles, not by asking the",
+    "model what it thought it knew."
+  ],
+
+  "answerable": [
+    {
+      "question": "What did running ANALYZE do to the slow SQLite query?",
+      "expect_sources": ["Learning a few things about running SQLite"],
+      "note": "5 seconds down to about 0.05 seconds."
+    },
+    {
+      "question": "Which SQLite feature was being used for full-text search?",
+      "expect_sources": ["Learning a few things about running SQLite"],
+      "note": "FTS5."
+    },
+    {
+      "question": "Why did the author move away from Tailwind?",
+      "expect_sources": ["Moving away from Tailwind, and learning to structure my CSS"],
+      "note": "Migrated toward semantic HTML and vanilla CSS."
+    },
+    {
+      "question": "What does Tailwind's CSS reset set box-sizing to?",
+      "expect_sources": ["Moving away from Tailwind, and learning to structure my CSS"],
+      "note": "border-box on every element."
+    },
+    {
+      "question": "What is a query set class in Django used for?",
+      "expect_sources": ["Some more things about Django I've been enjoying"],
+      "note": "Defining reusable methods with different WHERE clauses."
+    },
+    {
+      "question": "Why did the author find Playwright unsatisfying for frontend tests?",
+      "expect_sources": ["Testing Vue components in the browser"],
+      "note": "Slow and unwieldy, starting new browser processes, needed Node."
+    },
+    {
+      "question": "What approach to testing JavaScript does the author prefer instead of a framework?",
+      "expect_sources": ["Testing Vue components in the browser"],
+      "note": "Running the tests directly in a browser tab."
+    },
+    {
+      "question": "In an agentic coding session, why do input tokens dominate the bill?",
+      "expect_sources": ["Claude Code Cost Optimization: Cut Your Token Spend"],
+      "note": "The model is stateless, so every turn resends the whole conversation."
+    },
+    {
+      "question": "Is switching to a cheaper model the best first move for cutting cost?",
+      "expect_sources": ["Claude Code Cost Optimization: Cut Your Token Spend"],
+      "note": "No -- it often makes the bill worse, since the cheap model needs more attempts."
+    },
+    {
+      "question": "What is Cloudflare Artifacts?",
+      "expect_sources": ["Run CI/CD for millions of repos — on your platform, on Cloudflare"],
+      "note": "Versioned code storage that scales to millions of repos."
+    },
+    {
+      "question": "What is the Cloudflare CI SDK built on top of?",
+      "expect_sources": ["Run CI/CD for millions of repos — on your platform, on Cloudflare"],
+      "note": "Cloudflare Workflows."
+    },
+    {
+      "question": "Why do quantum computers need constant recalibration?",
+      "expect_sources": ["Towards a quantum computer that learns from its errors"],
+      "note": "They are analog machines sensitive to drift."
+    },
+    {
+      "question": "What technique was applied to quantum error correction control?",
+      "expect_sources": ["Towards a quantum computer that learns from its errors"],
+      "note": "Reinforcement learning."
+    },
+    {
+      "question": "What does the LLM release add support for regarding model reasoning?",
+      "expect_sources": ["New release of LLM adds support for reasoning traces, OpenAI Responses, server-side tools, and smarter logging"],
+      "note": "Reasoning traces."
+    },
+    {
+      "question": "What are Cloudflare Agents?",
+      "expect_sources": ["Introducing: Cloudflare Agents"],
+      "note": "Any article introducing the agents platform is acceptable evidence."
+    }
+  ],
+
+  "unanswerable": [
+    {
+      "question": "What is Postgres's default transaction isolation level?",
+      "why": "The corpus discusses SQLite at length but never Postgres isolation."
+    },
+    {
+      "question": "How do I configure Kubernetes horizontal pod autoscaling?",
+      "why": "Infrastructure-adjacent vocabulary, but no article covers Kubernetes."
+    },
+    {
+      "question": "What is the time complexity of quicksort?",
+      "why": "Plain CS fundamentals; these are engineering blog posts, not textbooks."
+    },
+    {
+      "question": "Which company won the 2024 Formula One constructors' championship?",
+      "why": "Wholly outside the corpus. The easy case, included as a floor."
+    },
+    {
+      "question": "How do I set up OAuth2 device flow authentication in Rust?",
+      "why": "Programming vocabulary the embeddings will partly match, on a topic absent from the corpus."
+    },
+    {
+      "question": "What were the main causes of the 2008 financial crisis?",
+      "why": "A serious question with an established answer, entirely outside these articles."
+    },
+    {
+      "question": "How much does Cloudflare charge per million Workers requests?",
+      "why": "THE HARD ONE. Cloudflare articles are well represented and pricing language scores well, but no article states this figure. A system that answers this is fabricating from adjacent context."
+    },
+    {
+      "question": "What is the recommended maximum heap size for a JVM microservice?",
+      "why": "Performance-tuning vocabulary that overlaps the SQLite and cost articles without being covered anywhere."
+    }
+  ]
+}

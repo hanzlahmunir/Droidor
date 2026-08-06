@@ -1,0 +1,53 @@
+# Pinned exactly (==, not >=) so a rebuild months from now installs the same
+# code that was tested. Day 2's peer review found an unpinned `groq>=0.11.0`
+# silently upgraded to a version whose API had changed and broke every turn --
+# that is the failure mode this prevents.
+
+# --- Vector store ---
+# Chroma holds the chunk embeddings. Note what it is NOT doing here: it is not
+# computing the embeddings, not choosing the model, and not deciding what
+# counts as a match. Chroma's embedding_function is deliberately left unset,
+# so `add` and `query` both receive vectors we computed ourselves.
+#
+# That split exists because the retrieval loop is the part of this task worth
+# learning -- distance to similarity, the threshold, the refusal. Handing that
+# to the store would hide exactly what we are here to write, and it also keeps
+# the store swappable: replacing Chroma touches one module.
+chromadb==0.5.23
+
+# --- Embeddings ---
+# all-MiniLM-L6-v2 via sentence-transformers: 384 dimensions, runs on CPU, no
+# API key, no per-query cost. Chosen over a hosted embedding API so the whole
+# retrieval half is deterministic and testable with no network -- the same
+# property that makes Day 3's suite runnable in CI.
+sentence-transformers==3.3.1
+# Pinned explicitly rather than left to sentence-transformers' resolver: the
+# CPU build is ~200MB smaller than the CUDA default, and an unpinned upgrade
+# across a major torch version is a slow, silent way to break the image.
+torch==2.5.1
+
+# --- The corpus ---
+# Articles are pulled from the Day 1 API over HTTP rather than read out of its
+# table. Going around the API would leave its contract unexercised -- the same
+# reasoning Day 3 applied when it POSTed instead of INSERTing.
+httpx==0.28.1
+
+# --- Answer generation ---
+# Same provider Day 2 and Day 3 already use, so there is one LLM client in the
+# repo and one key in .env.
+groq==0.31.1
+
+# --- UI ---
+# Streamlit: a browsable UI with no frontend build step, so `docker compose up`
+# stays a single command.
+streamlit==1.41.1
+pandas==2.2.3
+
+# --- Config ---
+python-dotenv==1.0.1
+
+# --- Tests ---
+pytest==8.3.4
+# respx mocks httpx at the transport layer, so the corpus-loading tests run
+# with zero network access and are deterministic in CI.
+respx==0.22.0
