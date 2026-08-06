@@ -11,20 +11,48 @@ distance to similarity, apply the floor.
 ## Run it
 
 ```bash
-docker compose up
+docker compose up -d                 # db + Day 1 API + UI on :8501
+docker compose run --rm rag ingest   # corpus -> chunks -> vectors
 ```
 
-Starts Postgres, builds and starts the Day 1 API, and opens the UI at
-<http://localhost:8501>.
-
-Then ingest and ask:
+Then open <http://localhost:8501>, or ask from the command line:
 
 ```bash
-docker compose run --rm rag ingest        # corpus -> chunks -> vectors
 docker compose run --rm rag ask "What did running ANALYZE do to the slow SQLite query?"
 docker compose run --rm rag eval          # measured retrieval quality
 docker compose run --rm rag stats         # what is indexed
 docker compose run --rm tests             # 99 offline tests
+```
+
+> **First run needs Day 3's corpus.** See [Requirements](#requirements)
+> immediately below — on a machine that has never run Day 3, `up` fails with
+> `external volume "day3_crawler_pgdata" not found`. That is deliberate (an
+> empty database would be a worse failure), and the fix is one command.
+
+### Reviewing without having run Day 3
+
+The corpus is 20 articles in Day 3's Postgres volume. If you do not have it,
+create it by running Day 3 once:
+
+```bash
+cd ../Day3_Crawler
+docker compose up -d
+docker compose --profile cli run --rm crawler seed   # crawls the 5 default feeds
+
+cd ../Day4_RAG
+docker compose up -d
+docker compose --profile cli run --rm rag ingest
+```
+
+Note that `seed` makes live requests to other people's servers, so it takes a
+couple of minutes and the exact article count can differ from the 20 these
+numbers were measured on.
+
+To review **only this project's code** without any corpus, the test suite is
+fully self-contained and needs no database, no network and no API key:
+
+```bash
+docker compose --profile cli run --rm tests    # 99 tests
 ```
 
 Ingestion is deliberately **not** started by `up`: it reads the whole corpus
@@ -46,7 +74,7 @@ explicit act.
 
 ## What it does
 
-```
+```text
 ARTICLE ─► chunk (structure-aware) ─► embed (local) ─► Chroma
 
 QUESTION ─► embed ─► top-k search ─► similarity floor
@@ -77,7 +105,7 @@ abstain in that case.
 
 Both are needed, and one question in the eval set proves it:
 
-```
+```text
 Q: How much does Cloudflare charge per million Workers requests?
    best chunk: 0.543  (floor is 0.40 — so it passes layer 1)
 A: I don't know.
@@ -233,7 +261,7 @@ measured by `rag eval` against the real corpus, not asserted in unit tests.
 
 ## Layout
 
-```
+```text
 app/
   config.py      every tunable, env-driven, validated
   corpus.py      loads articles from the Day 1 API (paginated)
