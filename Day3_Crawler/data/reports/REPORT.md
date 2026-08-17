@@ -1,6 +1,6 @@
 # Data Quality Report
 
-Generated: 2026-08-05 09:40 UTC
+Generated: 2026-08-17 14:32 UTC
 
 Every number below is computed by counting rows in `crawl_records`, not written by hand. Re-run `report` to regenerate it.
 
@@ -8,13 +8,13 @@ Every number below is computed by counting rows in `crawl_records`, not written 
 
 | Metric | Value |
 | --- | --- |
-| URLs processed | 26 |
-| Articles stored | 20 (76.9%) |
+| URLs processed | 136 |
+| Articles stored | 112 (82.4%) |
 | Duplicates | 0 (0.0%) |
-| Extraction failed or junk | 1 (3.8%) |
+| Extraction failed or junk | 4 (2.9%) |
 | Missing/unparseable date (of stored) | 0 (0.0%) |
-| Mean article length | 8777 chars |
-| Median article length | 9374 chars |
+| Mean article length | 8187 chars |
+| Median article length | 8450 chars |
 
 ## Every outcome
 
@@ -22,14 +22,14 @@ Each URL gets exactly one status, so these counts partition the input and sum to
 
 | Status | Count | % |
 | --- | ---: | ---: |
-| `stored` | 20 | 76.9% |
-| `bot_wall` | 5 | 19.2% |
-| `junk` | 1 | 3.8% |
-| **total** | **26** | **100%** |
+| `stored` | 112 | 82.4% |
+| `bot_wall` | 20 | 14.7% |
+| `junk` | 4 | 2.9% |
+| **total** | **136** | **100%** |
 
 ## Duplicates, and how they were detected
 
-**0 of 26 URLs (0.0%)** were duplicates.
+**0 of 136 URLs (0.0%)** were duplicates.
 
 Three independent layers, reported separately because they catch
 different things and have different reliability:
@@ -40,32 +40,32 @@ different things and have different reliability:
 | `content_sha256` | 0 | 0.0% | SHA-256 of the whitespace-normalised article text. Catches syndicated copies under different URLs. |
 | `near_duplicate` | 0 | 0.0% | Jaccard similarity over 5-word shingles, threshold 85%. |
 
-Highest similarity among articles we KEPT: **2.0%** (threshold 85%). 
+Highest similarity among articles we KEPT: **5.3%** (threshold 85%). 
 That is comfortably below the threshold, so no kept article is a borderline call.
 
 ## Extraction failures and junk
 
-**1 of 26 (3.8%)** either produced no text or produced text that failed a quality rule.
+**4 of 136 (2.9%)** either produced no text or produced text that failed a quality rule.
 
 | Outcome | Count | % | Meaning |
 | --- | ---: | ---: | --- |
 | `extraction_failed` | 0 | 0.0% | Page fetched, but no article text came out of it. |
-| `junk` | 1 | 3.8% | Text extracted, but it failed a quality rule. |
+| `junk` | 4 | 2.9% | Text extracted, but it failed a quality rule. |
 
 Which rule rejected them (one document can fail several):
 
 | Rule | Times fired | Definition |
 | --- | ---: | --- |
-| `too_short` | 1 | fewer than 300 characters |
-| `high_link_density` | 1 | more than 35% of characters inside <a> tags |
+| `high_link_density` | 4 | more than 35% of characters inside <a> tags |
+| `too_short` | 3 | fewer than 300 characters |
 
 ## Publish dates
 
-Scope: articles that were stored (a date is only meaningful for those) — 20 articles.
+Scope: articles that were stored (a date is only meaningful for those) — 112 articles.
 
 | Metric | Count | % of stored |
 | --- | ---: | ---: |
-| Date found and parsed | 20 | 100.0% |
+| Date found and parsed | 112 | 100.0% |
 | **Missing or unparseable** | **0** | **0.0%** |
 | — no date on the page at all | 0 | |
 | — found something, could not parse it | 0 | |
@@ -74,19 +74,19 @@ Where the dates actually came from (ladder, most authoritative first):
 
 | Source | Articles |
 | --- | ---: |
-| `rss` | 19 |
+| `rss` | 111 |
 | `json_ld` | 1 |
 
 ## Article length
 
 | Metric | Characters |
 | --- | ---: |
-| Mean | 8777 |
-| Median | 9374 |
-| Shortest | 592 |
-| Longest | 15568 |
+| Mean | 8187 |
+| Median | 8450 |
+| Shortest | 337 |
+| Longest | 33837 |
 
-Mean words per article: 1391.
+Mean words per article: 1286.
 
 ## Structure retained
 
@@ -94,17 +94,59 @@ Clean text is not the whole job: an article stripped down to undifferentiated pa
 
 | Metric | Value |
 | --- | ---: |
-| Articles with headings | 18 of 20 (90.0%) |
-| Total headings kept | 139 |
-| Articles with code blocks | 11 |
-| Total code blocks kept | 46 |
-| Total list items kept | 181 |
+| Articles with headings | 84 of 112 (75.0%) |
+| Total headings kept | 665 |
+| Articles with code blocks | 35 |
+| Total code blocks kept | 145 |
+| Total list items kept | 753 |
+
+Long articles (4,000+ chars) that came out with **no headings** — these are the ones worth inspecting:
+
+| Article | Chars |
+| --- | ---: |
+| https://research.google/blog/catalyzing-scientific-impact-through-global-partnerships-and-open-resources | 4213 |
+
+A long article with no headings usually means the page genuinely has none (a single-section post, a press release), or the extractor selected a container that excludes them. Worth opening to check which.
 
 ## The 5 shortest articles
 
 The brief predicts these are usually garbage, so they are quoted here rather than just listed — judge for yourself.
 
-### 1. A quote from Steve Yegge
+### 1. A quote from OpenClaw (running Opus 4.6)
+
+- **337 chars**, 57 words
+- URL: https://simonwillison.net/2026/Aug/10/openclaw
+- Stored as document `#52`
+- Publish date: 2026-08-10T02:05:16+00:00
+- Link density: 0.20
+
+```text
+10th August 2026
+
+> The API has zero authorisations checks on cancelling other people's reservations … I tested this with the person in waitlist position #1 — and it actually went through. So you've moved from #4 to #3 already.
+
+— [OpenClaw (running Opus 4.6)](https://www.abc.net.au/news/2026-08-10/ai-assistant-hacks-gym-website-aus-cyber-attack/107007986), hacking an Australian gym-booking website
+
+Posted [10th August 2026](https://simonwillison.net/2026/Aug/10/) at 2:05 am
+```
+
+### 2. Sighting: Northern Gannet
+
+- **466 chars**, 81 words
+- URL: https://simonwillison.net/2026/Aug/15/sighting-391300422
+- Stored as document `#40`
+- Publish date: 2026-08-15T03:22:00+00:00
+- Link density: 0.06
+
+```text
+This is Morris.
+
+Morris is a local celebrity: the only known Northern Gannet (*Morus bassanus*) in the entire Pacific Ocean.
+
+They showed up in the Farallon Islands off the coast of San Francisco [14 years ago](https://baynature.org/magazine/spring2017/atlantic-bird-makes-home-california-maybe-melting-arctic-ice/). They have since made Pillar Point harbor their home, where they are quite easy to spot: the only white bird with a yellow head, usually hanging out with the smaller black Brandt’s cormorants near the harbor sign visible from the end of the commercial pier.
+```
+
+### 3. A quote from Steve Yegge
 
 - **592 chars**, 112 words
 - URL: https://simonwillison.net/2026/Aug/4/steve-yegge
@@ -121,87 +163,47 @@ The brief predicts these are usually garbage, so they are quoted here rather tha
 ...[truncated]
 ```
 
-### 2. Release: llm-anthropic 0.26
+### 4. A quote from John Gruber
 
-- **1135 chars**, 162 words
-- URL: https://simonwillison.net/2026/Aug/4/llm-anthropic
-- Stored as document `#7`
-- Publish date: 2026-08-04T22:00:58+00:00
-- Link density: 0.08
+- **640 chars**, 121 words
+- URL: https://simonwillison.net/2026/Aug/8/john-gruber
+- Stored as document `#58`
+- Publish date: 2026-08-08T00:10:40+00:00
+- Link density: 0.10
 
 ```text
-4th August 2026
+8th August 2026
 
-[Release](https://simonwillison.net/elsewhere/release/)
-[llm-anthropic 0.26](https://github.com/simonw/llm-anthropic/releases/tag/0.26)
-— LLM access to models by Anthropic, including the Claude series
+> Me, I try to get into the mindset of playing live music, not recording a studio album. Except when I’m writing a piece where I really want it to be an album. Those aren’t *rare*, per se, but they’re *occasional*. If I tried to make every post a hall-of-famer I’d never get anything out.
+>
+> I’m aiming for professionalism. I’m performing live in front of an audience — not just jamming in my garage or bedroom, fucking around. So I’m careful and concentrate. I want to hit every note, in time. But at my best I’m moving from song to song.
 
-Includes new features enabled by [LLM 0.32](https://simonwillison.net/2026/Aug/4/new-release-of-llm/):
-
-> - New models: `claude-fable-5`, `claude-sonnet-5`, and `claude-opus-5`. [#75](https://github.com/simonw/llm-anthropic/issues/75), [#76](https://github.com/simonw/llm-anthropic/issues/76)
-> - Added server-side tools for `WebSearch`, `WebFetch`, `CodeExecution`, and `Anthropic
+— [John Gruber](https://daringfireball.ne
 ...[truncated]
 ```
 
-### 3. Links to CSS colour palettes
+### 5. A quote from Florian Herrengt
 
-- **1555 chars**, 282 words
-- URL: https://jvns.ca/blog/2026/05/04/css-colour-palettes
-- Stored as document `#4`
-- Publish date: 2026-05-04T00:00:00+00:00
-- Link density: 0.21
-
-```text
-A while back I decided to stop using Tailwind for new projects and to just write
-vanilla CSS instead.
-
-But one thing I missed about Tailwind was the [colour palette](https://v2.tailwindcss.com/docs/customizing-colors#color-palette-reference) ([here as CSS](https://gist.github.com/jvns/9e59b2cd1fe12601084ba78dded072fe)).
-If I wanted a light blue I could just use `blue-100` and if I didn’t like it
-maybe try `blue-200` or `blue-50`. I’m not very good with colours so it makes
-a big difference to me to have a reasonable colour palette that somebody who is
-better at colour than me has thought about.
-...[truncated]
-```
-
-### 4. PipeNetwork/minimax-h3-mlx
-
-- **1635 chars**, 229 words
-- URL: https://simonwillison.net/2026/Aug/4/minimax-h3-mlx
-- Stored as document `#8`
-- Publish date: 2026-08-04T19:10:09+00:00
-- Link density: 0.04
+- **811 chars**, 159 words
+- URL: https://simonwillison.net/2026/Aug/12/florian-herrengt
+- Stored as document `#47`
+- Publish date: 2026-08-12T15:08:47+00:00
+- Link density: 0.07
 
 ```text
-**[PipeNetwork/minimax-h3-mlx](https://github.com/PipeNetwork/minimax-h3-mlx)**. MiniMax released [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) two days ago - they describe it as a "a general-purpose, omni-modal generative system", which in practice means it accepts text, images, audio and video and can use them to generate up to 15 second video clips with audio included.
+12th August 2026
 
-This Python package ports it to MLX for running on Apple Silicon.
-
-I got it running on my M5 Max MacBook Pro. I cloned the repo and ran the model like this:
-
-```
-# First download the models
-uvx --from huggingface
-...[truncated]
-```
-
-### 5. Learning a few things about running SQLite
-
-- **5683 chars**, 1016 words
-- URL: https://jvns.ca/blog/2026/07/17/learning-about-running-sqlite
-- Stored as document `#2`
-- Publish date: 2026-07-17T00:00:00+00:00
-- Link density: 0.06
-
-```text
-Hello! I’ve been working on a Django site recently, and I decided to use SQLite
-as the database.
-When I was getting started with using SQLite as database for a website I read a [bunch](https://alldjango.com/articles/definitive-guide-to-using-django-sqlite-in-production)
-of blog posts about how it is totally fine to use SQLite in production for a
-small site and I think it *is* totally fine, but what I did not fully appreciate
-is that SQLite is still a database, databases are complicated, and I do not know
-a lot about operating databases.
-
-So here are a couple of small things I’ve been learning 
+> But then users start to report a weird bug. It's the 4th time your team has been trying to fix it. I mean... asking AI to fix it. Unfortunately, it seems like not even Fable can figure it out.
+>
+> You go talk to the person who worked on this feature.
+>
+> "So where does the data come from?"
+>
+> "Hmm... actually I don't know. Let me ask Claude."
+>
+> You sit next to each other watching an endless wall of text appear on the screen. Neither of you has any idea whether any of it is true but Claude seems very confident. [...]
+>
+> This project has become so convoluted, with so many
 ...[truncated]
 ```
 
@@ -209,7 +211,7 @@ So here are a couple of small things I’ve been learning
 
 | Reason | Count | % |
 | --- | ---: | ---: |
-| `bot_wall` | 5 | 19.2% |
+| `bot_wall` | 20 | 14.7% |
 
 These are detected and reported, never worked around: the brief puts anything behind a login out of scope.
 
@@ -221,11 +223,11 @@ None in this run.
 
 | Host | Attempted | Stored |
 | --- | ---: | ---: |
-| jvns.ca | 5 | 5 |
-| simonwillison.net | 5 | 4 |
-| hacks.mozilla.org | 5 | 0 |
-| blog.cloudflare.com | 5 | 5 |
-| research.google | 5 | 5 |
+| simonwillison.net | 35 | 31 |
+| research.google | 35 | 35 |
+| blog.cloudflare.com | 25 | 25 |
+| jvns.ca | 20 | 20 |
+| hacks.mozilla.org | 20 | 0 |
 | www.claudedirectory.org | 1 | 1 |
 
 ## Thresholds these numbers were measured against

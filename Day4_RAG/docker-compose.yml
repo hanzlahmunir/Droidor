@@ -77,8 +77,8 @@ services:
       # rebuilding -- which is the whole point of them being config.
       CHUNK_SIZE: ${CHUNK_SIZE:-700}
       CHUNK_OVERLAP: ${CHUNK_OVERLAP:-150}
-      TOP_K: ${TOP_K:-5}
-      SIMILARITY_FLOOR: ${SIMILARITY_FLOOR:-0.40}
+      TOP_K: ${TOP_K:-12}
+      SIMILARITY_FLOOR: ${SIMILARITY_FLOOR:-0.425}
       ANSWER_MODEL: ${ANSWER_MODEL:-openai/gpt-oss-120b}
     depends_on:
       api:
@@ -106,8 +106,8 @@ services:
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       CHUNK_SIZE: ${CHUNK_SIZE:-700}
       CHUNK_OVERLAP: ${CHUNK_OVERLAP:-150}
-      TOP_K: ${TOP_K:-5}
-      SIMILARITY_FLOOR: ${SIMILARITY_FLOOR:-0.40}
+      TOP_K: ${TOP_K:-12}
+      SIMILARITY_FLOOR: ${SIMILARITY_FLOOR:-0.425}
       ANSWER_MODEL: ${ANSWER_MODEL:-openai/gpt-oss-120b}
     depends_on:
       api:

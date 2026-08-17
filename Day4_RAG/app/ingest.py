@@ -128,6 +128,18 @@ def ingest(
     """
     report = IngestReport(was_reset=reset, settings=config.describe())
 
+    # THE CORPUS IS LOADED AND CHUNKED BEFORE ANYTHING IS DESTROYED.
+    #
+    # This ordering is not incidental. An earlier version reset the collection
+    # first, and when `load_articles` then failed against an unreachable API,
+    # the result was an EMPTY vector store and an exit code of 0 -- the store
+    # wiped, nothing indexed, and no indication anything had gone wrong. The
+    # next `ask` would answer "I don't know" to everything, which is
+    # indistinguishable from a working system on a corpus that covers nothing.
+    #
+    # Loading first means a failure here leaves the previous collection
+    # untouched and raises, which is the only safe order for a destructive
+    # operation: acquire what you need, THEN destroy what you are replacing.
     if articles is None:
         articles = load_articles(config)
     report.articles_seen = len(articles)

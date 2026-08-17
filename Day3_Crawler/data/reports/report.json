@@ -1,14 +1,14 @@
 {
-  "generated_at": "2026-08-05T09:40:49.418392+00:00",
-  "total_urls_processed": 26,
+  "generated_at": "2026-08-17T14:32:55.060506+00:00",
+  "total_urls_processed": 136,
   "status_counts": {
-    "bot_wall": 5,
-    "junk": 1,
-    "stored": 20
+    "bot_wall": 20,
+    "junk": 4,
+    "stored": 112
   },
   "integrity": {
-    "total_records": 26,
-    "sum_of_status_counts": 26,
+    "total_records": 136,
+    "sum_of_status_counts": 136,
     "consistent": true
   },
   "duplicates": {
@@ -32,23 +32,23 @@
         "matches": []
       }
     },
-    "highest_similarity_among_kept": 0.0197
+    "highest_similarity_among_kept": 0.0532
   },
   "extraction": {
-    "failed_or_junk": 1,
-    "pct": 3.8,
+    "failed_or_junk": 4,
+    "pct": 2.9,
     "extraction_failed": {
       "count": 0,
       "pct": 0.0,
       "meaning": "Page fetched, but no article text came out of it."
     },
     "junk": {
-      "count": 1,
-      "pct": 3.8,
+      "count": 4,
+      "pct": 2.9,
       "meaning": "Text extracted, but it failed a quality rule.",
       "by_rule": {
-        "too_short": 1,
-        "high_link_density": 1
+        "high_link_density": 4,
+        "too_short": 3
       }
     },
     "rules": {
@@ -59,39 +59,69 @@
   },
   "publish_dates": {
     "scope": "articles that were stored (a date is only meaningful for those)",
-    "stored_total": 20,
-    "with_date": 20,
+    "stored_total": 112,
+    "with_date": 112,
     "with_date_pct": 100.0,
     "missing_or_unparseable": 0,
     "missing_or_unparseable_pct": 0.0,
     "no_date_found_at_all": 0,
     "found_but_unparseable": 0,
     "by_source": {
-      "rss": 19,
+      "rss": 111,
       "json_ld": 1
     },
     "unparseable_examples": []
   },
   "lengths": {
-    "articles_measured": 20,
-    "mean_chars": 8777,
-    "median_chars": 9374,
-    "min_chars": 592,
-    "max_chars": 15568,
-    "mean_words": 1391
+    "articles_measured": 112,
+    "mean_chars": 8187,
+    "median_chars": 8450,
+    "min_chars": 337,
+    "max_chars": 33837,
+    "mean_words": 1286
   },
   "structure_retention": {
-    "articles_with_headings": 18,
-    "articles_with_headings_pct": 90.0,
-    "total_headings": 139,
-    "articles_with_code_blocks": 11,
-    "total_code_blocks": 46,
-    "total_list_items": 181,
-    "long_articles_without_headings": []
+    "articles_with_headings": 84,
+    "articles_with_headings_pct": 75.0,
+    "total_headings": 665,
+    "articles_with_code_blocks": 35,
+    "total_code_blocks": 145,
+    "total_list_items": 753,
+    "long_articles_without_headings": [
+      {
+        "url": "https://research.google/blog/catalyzing-scientific-impact-through-global-partnerships-and-open-resources",
+        "chars": 4213,
+        "source": "research.google"
+      }
+    ]
   },
   "five_shortest": [
     {
       "rank": 1,
+      "chars": 337,
+      "words": 57,
+      "title": "A quote from OpenClaw (running Opus 4.6)",
+      "url": "https://simonwillison.net/2026/Aug/10/openclaw",
+      "api_document_id": 52,
+      "published_at": "2026-08-10T02:05:16+00:00",
+      "link_density": 0.2014,
+      "excerpt": "10th August 2026\n\n> The API has zero authorisations checks on cancelling other people's reservations … I tested this with the person in waitlist position #1 — and it actually went through. So you've moved from #4 to #3 already.\n\n— [OpenClaw (running Opus 4.6)](https://www.abc.net.au/news/2026-08-10/ai-assistant-hacks-gym-website-aus-cyber-attack/107007986), hacking an Australian gym-booking website\n\nPosted [10th August 2026](https://simonwillison.net/2026/Aug/10/) at 2:05 am",
+      "truncated": false
+    },
+    {
+      "rank": 2,
+      "chars": 466,
+      "words": 81,
+      "title": "Sighting: Northern Gannet",
+      "url": "https://simonwillison.net/2026/Aug/15/sighting-391300422",
+      "api_document_id": 40,
+      "published_at": "2026-08-15T03:22:00+00:00",
+      "link_density": 0.0625,
+      "excerpt": "This is Morris.\n\nMorris is a local celebrity: the only known Northern Gannet (*Morus bassanus*) in the entire Pacific Ocean.\n\nThey showed up in the Farallon Islands off the coast of San Francisco [14 years ago](https://baynature.org/magazine/spring2017/atlantic-bird-makes-home-california-maybe-melting-arctic-ice/). They have since made Pillar Point harbor their home, where they are quite easy to spot: the only white bird with a yellow head, usually hanging out with the smaller black Brandt’s cormorants near the harbor sign visible from the end of the commercial pier.",
+      "truncated": false
+    },
+    {
+      "rank": 3,
       "chars": 592,
       "words": 112,
       "title": "A quote from Steve Yegge",
@@ -103,74 +133,50 @@
       "truncated": true
     },
     {
-      "rank": 2,
-      "chars": 1135,
-      "words": 162,
-      "title": "Release: llm-anthropic 0.26",
-      "url": "https://simonwillison.net/2026/Aug/4/llm-anthropic",
-      "api_document_id": 7,
-      "published_at": "2026-08-04T22:00:58+00:00",
-      "link_density": 0.0845,
-      "excerpt": "4th August 2026\n\n[Release](https://simonwillison.net/elsewhere/release/)\n[llm-anthropic 0.26](https://github.com/simonw/llm-anthropic/releases/tag/0.26)\n— LLM access to models by Anthropic, including the Claude series\n\nIncludes new features enabled by [LLM 0.32](https://simonwillison.net/2026/Aug/4/new-release-of-llm/):\n\n> - New models: `claude-fable-5`, `claude-sonnet-5`, and `claude-opus-5`. [#75](https://github.com/simonw/llm-anthropic/issues/75), [#76](https://github.com/simonw/llm-anthropic/issues/76)\n> - Added server-side tools for `WebSearch`, `WebFetch`, `CodeExecution`, and `Anthropic",
-      "truncated": true
-    },
-    {
-      "rank": 3,
-      "chars": 1555,
-      "words": 282,
-      "title": "Links to CSS colour palettes",
-      "url": "https://jvns.ca/blog/2026/05/04/css-colour-palettes",
-      "api_document_id": 4,
-      "published_at": "2026-05-04T00:00:00+00:00",
-      "link_density": 0.2065,
-      "excerpt": "A while back I decided to stop using Tailwind for new projects and to just write\nvanilla CSS instead.\n\nBut one thing I missed about Tailwind was the [colour palette](https://v2.tailwindcss.com/docs/customizing-colors#color-palette-reference) ([here as CSS](https://gist.github.com/jvns/9e59b2cd1fe12601084ba78dded072fe)).\nIf I wanted a light blue I could just use `blue-100` and if I didn’t like it\nmaybe try `blue-200` or `blue-50`. I’m not very good with colours so it makes\na big difference to me to have a reasonable colour palette that somebody who is\nbetter at colour than me has thought about.",
-      "truncated": true
-    },
-    {
       "rank": 4,
-      "chars": 1635,
-      "words": 229,
-      "title": "PipeNetwork/minimax-h3-mlx",
-      "url": "https://simonwillison.net/2026/Aug/4/minimax-h3-mlx",
-      "api_document_id": 8,
-      "published_at": "2026-08-04T19:10:09+00:00",
-      "link_density": 0.0361,
-      "excerpt": "**[PipeNetwork/minimax-h3-mlx](https://github.com/PipeNetwork/minimax-h3-mlx)**. MiniMax released [MiniMax-H3](https://huggingface.co/MiniMaxAI/MiniMax-H3) two days ago - they describe it as a \"a general-purpose, omni-modal generative system\", which in practice means it accepts text, images, audio and video and can use them to generate up to 15 second video clips with audio included.\n\nThis Python package ports it to MLX for running on Apple Silicon.\n\nI got it running on my M5 Max MacBook Pro. I cloned the repo and ran the model like this:\n\n```\n# First download the models\nuvx --from huggingface",
+      "chars": 640,
+      "words": 121,
+      "title": "A quote from John Gruber",
+      "url": "https://simonwillison.net/2026/Aug/8/john-gruber",
+      "api_document_id": 58,
+      "published_at": "2026-08-08T00:10:40+00:00",
+      "link_density": 0.1006,
+      "excerpt": "8th August 2026\n\n> Me, I try to get into the mindset of playing live music, not recording a studio album. Except when I’m writing a piece where I really want it to be an album. Those aren’t *rare*, per se, but they’re *occasional*. If I tried to make every post a hall-of-famer I’d never get anything out.\n>\n> I’m aiming for professionalism. I’m performing live in front of an audience — not just jamming in my garage or bedroom, fucking around. So I’m careful and concentrate. I want to hit every note, in time. But at my best I’m moving from song to song.\n\n— [John Gruber](https://daringfireball.ne",
       "truncated": true
     },
     {
       "rank": 5,
-      "chars": 5683,
-      "words": 1016,
-      "title": "Learning a few things about running SQLite",
-      "url": "https://jvns.ca/blog/2026/07/17/learning-about-running-sqlite",
-      "api_document_id": 2,
-      "published_at": "2026-07-17T00:00:00+00:00",
-      "link_density": 0.0645,
-      "excerpt": "Hello! I’ve been working on a Django site recently, and I decided to use SQLite\nas the database.\nWhen I was getting started with using SQLite as database for a website I read a [bunch](https://alldjango.com/articles/definitive-guide-to-using-django-sqlite-in-production)\nof blog posts about how it is totally fine to use SQLite in production for a\nsmall site and I think it *is* totally fine, but what I did not fully appreciate\nis that SQLite is still a database, databases are complicated, and I do not know\na lot about operating databases.\n\nSo here are a couple of small things I’ve been learning ",
+      "chars": 811,
+      "words": 159,
+      "title": "A quote from Florian Herrengt",
+      "url": "https://simonwillison.net/2026/Aug/12/florian-herrengt",
+      "api_document_id": 47,
+      "published_at": "2026-08-12T15:08:47+00:00",
+      "link_density": 0.0723,
+      "excerpt": "12th August 2026\n\n> But then users start to report a weird bug. It's the 4th time your team has been trying to fix it. I mean... asking AI to fix it. Unfortunately, it seems like not even Fable can figure it out.\n>\n> You go talk to the person who worked on this feature.\n>\n> \"So where does the data come from?\"\n>\n> \"Hmm... actually I don't know. Let me ask Claude.\"\n>\n> You sit next to each other watching an endless wall of text appear on the screen. Neither of you has any idea whether any of it is true but Claude seems very confident. [...]\n>\n> This project has become so convoluted, with so many",
       "truncated": true
     }
   ],
   "blocked": {
-    "login_required": {
+    "bot_wall": {
+      "count": 20,
+      "pct": 14.7
+    },
+    "paywall_partial": {
       "count": 0,
       "pct": 0.0
     },
-    "bot_wall": {
-      "count": 5,
-      "pct": 19.2
-    },
-    "paywall_partial": {
+    "login_required": {
       "count": 0,
       "pct": 0.0
     }
   },
   "refused_before_fetch": {
-    "rate_limited": {
+    "invalid_url": {
       "count": 0,
       "pct": 0.0
     },
-    "invalid_url": {
+    "rate_limited": {
       "count": 0,
       "pct": 0.0
     },
@@ -180,25 +186,25 @@
     }
   },
   "hosts": {
-    "jvns.ca": {
-      "attempted": 5,
-      "stored": 5
-    },
     "simonwillison.net": {
-      "attempted": 5,
-      "stored": 4
-    },
-    "hacks.mozilla.org": {
-      "attempted": 5,
-      "stored": 0
-    },
-    "blog.cloudflare.com": {
-      "attempted": 5,
-      "stored": 5
+      "attempted": 35,
+      "stored": 31
     },
     "research.google": {
-      "attempted": 5,
-      "stored": 5
+      "attempted": 35,
+      "stored": 35
+    },
+    "blog.cloudflare.com": {
+      "attempted": 25,
+      "stored": 25
+    },
+    "jvns.ca": {
+      "attempted": 20,
+      "stored": 20
+    },
+    "hacks.mozilla.org": {
+      "attempted": 20,
+      "stored": 0
     },
     "www.claudedirectory.org": {
       "attempted": 1,

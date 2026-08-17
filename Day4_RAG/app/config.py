@@ -147,38 +147,81 @@ class Config:
 
         # ---------- Retrieval ----------
         # How many chunks the vector search returns. Required by the task to
-        # be configurable.
-        self.top_k: int = _int("TOP_K", 5)
+        # be configurable -- and it turned out to need changing, exactly as
+        # the task predicted, once the corpus grew.
+        #
+        # 12 IS MEASURED, at 112 articles / 2183 chunks:
+        #
+        #     top_k   recall@0.425   refusal
+        #        5        96.7%       53.8%
+        #        8        96.7%       53.8%
+        #       12       100.0%       53.8%   <- chosen
+        #       16       100.0%       53.8%   (identical -- saturated)
+        #       20       100.0%       53.8%   (identical)
+        #
+        # At 20 articles this value was irrelevant: every question had one
+        # obvious home and 5 was plenty. At 112 it is not. "What is the
+        # Cloudflare CI SDK built on top of?" retrieves four Cloudflare
+        # MARKETING posts scoring 0.575-0.613 ahead of the article that
+        # actually answers it at 0.568 -- 25 Cloudflare articles share so much
+        # boilerplate vocabulary that the embedding barely separates them. At
+        # top_k=5 the right chunk is the last one in; at 12 it is comfortably
+        # inside.
+        #
+        # Raising it costs nothing in refusal, because the false positives
+        # here score HIGH rather than ranking low -- more results cannot add a
+        # false positive that a floor was already going to admit. It saturates
+        # at 12, so this is the value where recall is bought and nothing
+        # further is gained.
+        self.top_k: int = _int("TOP_K", 12)
 
         # THE REFUSAL GATE. Cosine similarity below which a chunk is not
         # evidence. If the best chunk scores under this, `ask` answers "I
         # don't know" WITHOUT calling the LLM -- the refusal is a measured
         # property of retrieval, not a hope about model behaviour.
         #
-        # 0.40 IS MEASURED. `rag eval` sweeps this against 15 answerable and 8
-        # unanswerable questions (data/eval_questions.json) and reports the
-        # trade-off. The relevant part of that sweep:
+        # 0.425 IS MEASURED, at 112 articles / 2183 chunks, against 30
+        # answerable and 13 unanswerable questions.
         #
         #     floor   recall   refusal   false-answer
-        #     0.350   100.0%     75.0%         25.0%   <- the original guess
-        #     0.375   100.0%     87.5%         12.5%
-        #     0.400   100.0%     87.5%         12.5%   <- chosen
-        #     0.425   100.0%     87.5%         12.5%
-        #     0.450    86.7%     87.5%         12.5%   <- recall starts falling
-        #     0.550    86.7%    100.0%          0.0%
+        #     0.400   100.0%     46.2%         53.8%
+        #     0.425   100.0%     53.8%         46.2%   <- chosen
+        #     0.500    90.0%     61.5%         38.5%
+        #     0.525    86.7%     69.2%         30.8%
+        #     0.575    73.3%     84.6%         15.4%   <- "best balanced"
         #
-        # 0.400 sits in the MIDDLE of the 0.375-0.425 plateau rather than at
-        # its edge, so a slightly different corpus does not tip it off a
-        # cliff. It keeps every answerable question while refusing 7 of 8
-        # unanswerable ones outright.
+        # WHAT CHANGED FROM THE 20-ARTICLE VERSION, AND WHY IT MATTERS.
+        # This floor was 0.40, chosen when the corpus was 20 articles and the
+        # floor caught 7 of 8 unanswerable questions on its own. That number
+        # did not survive contact with a real corpus: on the same questions at
+        # 112 articles the false-answer rate went 12.5% -> 37.5% with no code
+        # change at all. "What were the main causes of the 2008 financial
+        # crisis?" scored 0.24 at 20 articles and 0.404 at 112, where it would
+        # cite a DDoS threat report. More text means more accidental matches.
         #
-        # The remaining leak is deliberate. "How much does Cloudflare charge
-        # per million Workers requests?" scores 0.543 -- the corpus has five
-        # Cloudflare articles, so pricing-shaped questions match well without
-        # containing the answer. No floor that catches it also keeps full
-        # recall (0.550 costs two answerable questions). That case is the
-        # prompt layer's job, and it does catch it -- verified end to end.
-        self.similarity_floor: float = _float("SIMILARITY_FLOOR", 0.40)
+        # SO THE FLOOR'S JOB HAS CHANGED. It is no longer the primary defence;
+        # it is a cheap pre-filter that kills obvious nonsense (quicksort,
+        # Formula One) for free, before any token is spent. It CANNOT separate
+        # the hard cases: a question about a real, densely-covered article
+        # whose specific fact is absent scores 0.50-0.70, which is exactly
+        # where genuine answers live. Six such questions are in the eval set
+        # by construction, scoring up to 0.702.
+        #
+        # 0.425 is the highest floor that still keeps 100% recall. Going
+        # higher buys refusal by refusing real questions -- 0.575 would reject
+        # the Steve Yegge quote (0.512) and the MiniMax hardware question
+        # (0.554). The `balanced` column prefers 0.575, but that metric weighs
+        # a missed answer exactly as heavily as a fabricated one, which is the
+        # wrong trade for a system whose stated contract is "cites its sources
+        # or says I don't know".
+        #
+        # The hard cases are the PROMPT layer's job, and it holds: all four
+        # near-misses tested end to end were refused, including the 0.702
+        # SymptomAI benchmark question. That is the argument for two layers,
+        # and it gets stronger with corpus size, not weaker -- a
+        # threshold-only system would now fabricate answers to 46% of the
+        # unanswerable set.
+        self.similarity_floor: float = _float("SIMILARITY_FLOOR", 0.425)
 
         # Total characters of retrieved chunks passed to the answer model.
         # Bounds cost and latency, and stops one long chunk from consuming the

@@ -1,8 +1,9 @@
 # Day 4 — RAG over the Day 3 corpus
 
-Answers questions from the articles crawled on Day 3. Every answer cites the
-articles it came from. Questions the corpus does not cover get **"I don't
-know"** rather than a guess — and that refusal is measured, not hoped for.
+Answers questions from the **112 articles** crawled on Day 3. Every answer
+cites the articles it came from. Questions the corpus does not cover get
+**"I don't know"** rather than a guess — and that refusal is measured, not
+hoped for.
 
 No LangChain, no LlamaIndex. The retrieval loop is written by hand in
 [app/retriever.py](app/retriever.py) — embed the question, search, convert
@@ -31,22 +32,23 @@ docker compose run --rm tests             # 99 offline tests
 
 ### Reviewing without having run Day 3
 
-The corpus is 20 articles in Day 3's Postgres volume. If you do not have it,
+The corpus is 112 articles in Day 3's Postgres volume. If you do not have it,
 create it by running Day 3 once:
 
 ```bash
 cd ../Day3_Crawler
 docker compose up -d
-docker compose --profile cli run --rm crawler seed   # crawls the 5 default feeds
+docker compose --profile cli run --rm crawler seed --per-feed 35
 
 cd ../Day4_RAG
 docker compose up -d
 docker compose --profile cli run --rm rag ingest
 ```
 
-Note that `seed` makes live requests to other people's servers, so it takes a
-couple of minutes and the exact article count can differ from the 20 these
-numbers were measured on.
+`--per-feed 35` is what produced the 112-article corpus these numbers were
+measured on. `seed` makes live requests to other people's servers, so it takes
+15-25 minutes at the default politeness settings, and the exact article count
+will differ as those blogs publish.
 
 To review **only this project's code** without any corpus, the test suite is
 fully self-contained and needs no database, no network and no API key:
@@ -103,21 +105,43 @@ prompt instruction is a request.
 the question while not containing the answer. The prompt requires the model to
 abstain in that case.
 
-Both are needed, and one question in the eval set proves it:
+**The balance between them shifted as the corpus grew, and that is the most
+interesting result here.**
+
+At 20 articles the floor caught 7 of 8 unanswerable questions — it was doing
+most of the work. At 112 articles it catches about half, because the hard
+cases now look exactly like genuine answers to a cosine score. Six questions
+in the eval set are *near-misses* by construction: plausible questions about
+real, densely-covered articles whose specific fact is simply absent.
+
+| near-miss question | best chunk | would cite |
+| --- | ---: | --- |
+| What accuracy did SymptomAI achieve on its benchmark? | **0.702** | SymptomAI |
+| How much does Cloudflare charge per million Workers requests? | 0.601 | Workers AI control plane |
+| What is the parameter count behind SymptomAI? | 0.571 | SymptomAI |
+| Which Django version is recommended for production? | 0.569 | Django article |
+| What SQLite page size does the author recommend? | 0.505 | SQLite article |
+| How do I set up OAuth2 device flow in Rust? | 0.498 | The Agent Access Model |
+
+Genuine answers live in that same 0.5–0.7 band, so **no floor separates
+them.** All six were tested end to end and all six were refused — by the
+prompt, not the threshold:
 
 ```text
-Q: How much does Cloudflare charge per million Workers requests?
-   best chunk: 0.543  (floor is 0.40 — so it passes layer 1)
+Q: What accuracy did SymptomAI achieve on its benchmark?
+   best chunk: 0.702  (floor is 0.425 — comfortably passes layer 1)
 A: I don't know.
    (The model judged the retrieved sources insufficient.)
 ```
 
-The corpus has five Cloudflare articles, so pricing-shaped questions match
-strongly without containing the answer. No floor catches this *and* keeps full
-recall — 0.55 would, at the cost of two answerable questions. A
-threshold-only system would have fabricated a price from adjacent prose; a
-prompt-only system would spend tokens on every unanswerable question and have
-no measurable refusal behaviour at all.
+So the floor's job is not what it was. It is now a **cheap pre-filter** that
+kills obvious nonsense (quicksort, Formula One) before a token is spent, while
+the prompt carries the hard cases. A threshold-only system at this corpus size
+would fabricate answers to 46% of the unanswerable set; a prompt-only system
+would pay for an LLM call on every one of them and have no measurable refusal
+behaviour at all.
+
+**The argument for two layers gets stronger with scale, not weaker.**
 
 Citations are **validated, not trusted**: any `[n]` pointing outside the
 sources actually sent is stripped. A fabricated citation is worse than none,
@@ -142,29 +166,74 @@ against the model's own tokenizer over the real corpus:
 | 800 | 352 | 5.1% |
 | 1000 | 301 | 12.6% |
 
+(Measured on the 20-article corpus. At 112 articles the same setting yields
+2183 chunks with 1.6% truncated — the ratio improved, so 700 still holds.)
+
 The residual 2.7% is not fixable by shrinking further: it is code blocks kept
 whole on purpose, plus link-dense prose (URLs tokenise at ~1.6 chars/token
 against prose's ~3.9). `ingest` reports the count rather than hiding it.
 
-### `SIMILARITY_FLOOR` — 0.35 → 0.40
+### `SIMILARITY_FLOOR` — 0.35 → 0.40 → 0.425, and what that taught
 
-`rag eval` sweeps the floor over 15 answerable and 8 unanswerable questions:
+The first tuning was done on a **20-article** corpus and gave 0.40: 100%
+recall, 87.5% refusal. It looked excellent. It did not survive contact with a
+real corpus.
+
+Re-running **the same 23 questions** against 112 articles, with no code change
+at all:
+
+| @ floor 0.40 | 20 articles | 112 articles |
+| --- | ---: | ---: |
+| recall | 100% | 100% |
+| refusal | 87.5% | **62.5%** |
+| false-answer | 12.5% | **37.5%** |
+
+The false-answer rate tripled because more text means more accidental matches.
+The clearest single case: *"What were the main causes of the 2008 financial
+crisis?"* scored **0.24** at 20 articles and **0.404** at 112, where it clears
+the floor and would cite a *Cloudflare DDoS Threat Report* — matched purely on
+vocabulary overlap ("crisis", "causes", "attacks soar").
+
+**A threshold tuned on a small corpus does not transfer.** That is the single
+most useful thing this project measured.
+
+The eval set was then rewritten to 30 answerable + 13 unanswerable, weighted
+toward questions that only become possible once topics collide. At the current
+settings:
 
 | floor | recall | refusal | false-answer |
 | ----: | -----: | ------: | -----------: |
-| 0.350 | 100.0% | 75.0% | 25.0% |
-| 0.375 | 100.0% | 87.5% | 12.5% |
-| **0.400** | **100.0%** | **87.5%** | **12.5%** |
-| 0.450 | 86.7% | 87.5% | 12.5% |
-| 0.550 | 86.7% | 100.0% | 0.0% |
+| 0.400 | 100.0% | 46.2% | 53.8% |
+| **0.425** | **100.0%** | **53.8%** | **46.2%** |
+| 0.500 | 90.0% | 61.5% | 38.5% |
+| 0.575 | 73.3% | 84.6% | 15.4% |
 
-0.35 was leaving refusals on the table for free. 0.40 sits in the middle of
-the 0.375–0.425 plateau rather than at its edge, so a slightly different
-corpus does not tip it off a cliff.
+0.425 is the highest floor that keeps 100% recall. Going higher buys refusal
+by refusing *real* questions — 0.575 rejects the Steve Yegge quote (0.512) and
+the MiniMax hardware question (0.554). The sweep's own "best balanced" column
+prefers 0.575, and it is wrong to: that metric weighs a missed answer exactly
+as heavily as a fabricated one.
 
 **Both rates are reported because either alone is meaningless.** A floor of
 -1 scores 100% recall while answering everything wrongly; a floor of 1.0
 scores 100% refusal while being useless. The test suite asserts exactly this.
+
+### `TOP_K` — 5 → 12
+
+At 20 articles this value was irrelevant. At 112 it is not:
+
+| top_k | recall | refusal |
+| ----: | -----: | ------: |
+| 5 | 96.7% | 53.8% |
+| 8 | 96.7% | 53.8% |
+| **12** | **100.0%** | **53.8%** |
+| 16 / 20 | 100.0% | 53.8% (identical — saturated) |
+
+*"What is the Cloudflare CI SDK built on top of?"* retrieves four Cloudflare
+**marketing** posts scoring 0.575–0.613 ahead of the article that answers it
+at 0.568 — 25 Cloudflare articles share so much boilerplate that the embedding
+barely separates them. Raising `top_k` costs nothing in refusal, because these
+false positives score high rather than ranking low.
 
 Full report: [data/reports/EVAL.md](data/reports/EVAL.md), regenerable with
 `rag eval --report`.
@@ -181,8 +250,8 @@ nobody does.
 | `CHUNK_SIZE` | 700 | Target chars per chunk. Measured — see above. |
 | `CHUNK_OVERLAP` | 150 | Chars repeated between adjacent chunks. |
 | `MIN_CHUNK_CHARS` | 80 | Below this a chunk is dropped as noise. |
-| `TOP_K` | 5 | Chunks the search returns. |
-| `SIMILARITY_FLOOR` | 0.40 | The refusal gate. Measured — see above. |
+| `TOP_K` | 12 | Chunks the search returns. Measured — see above. |
+| `SIMILARITY_FLOOR` | 0.425 | The refusal gate. Measured — see above. |
 | `MAX_CONTEXT_CHARS` | 8000 | Bounds what is sent to the model. |
 | `EMBEDDING_MODEL` | all-MiniLM-L6-v2 | Local, 384-dim, no API key. |
 | `ANSWER_MODEL` | openai/gpt-oss-120b | Via Groq. |
