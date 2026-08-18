@@ -56,6 +56,44 @@ _META_CHUNK_OVERLAP = "chunk_overlap"
 # in config.py would be meaningless.
 _DISTANCE_SPACE = "cosine"
 
+# HOW HARD THE APPROXIMATE SEARCH TRIES. This is not a performance knob here;
+# it is a correctness one.
+#
+# Chroma indexes vectors with HNSW, a navigable graph. A query walks the graph
+# toward the target rather than comparing against every vector, which is what
+# keeps it fast at millions of vectors. The cost is that the walk can stop in a
+# local minimum -- every neighbour looks worse, so it terminates -- while a
+# better match sits elsewhere in the graph, unvisited.
+#
+# MEASURED ON THIS CORPUS, at the default search_ef of 10:
+#
+#   "Why did the author find Playwright unsatisfying for frontend tests?"
+#     brute-force exact cosine over all 2195 chunks : 0.447  (Vue article)
+#     what HNSW returned                            : 0.394  (a different one)
+#
+#   and it ALTERNATED between the two across process starts -- same vectors,
+#   same collection, same query. Within one process it was stable; the
+#   traversal differs between loads.
+#
+# That is bad on its own (an eval that is not reproducible is not a
+# measurement), and worse here because the true score 0.447 sits just above
+# the 0.425 floor: when the walk missed, the question flipped from answered to
+# refused. A 0.022 margin was being decided by graph-traversal luck.
+#
+# search_ef is the size of the candidate list the walk keeps in play. Larger
+# means more of the graph explored and higher recall, at the cost of a slower
+# query. 200 over 2195 chunks costs single-digit milliseconds -- irrelevant at
+# this scale, and cheap insurance against a silently wrong neighbour.
+#
+# NOTE it must be set at CREATION: Chroma refuses to modify index parameters on
+# an existing collection, so changing it requires `ingest --reset`.
+_SEARCH_EF = 200
+
+# How thoroughly the graph is BUILT (vs searched). A denser graph at build time
+# gives every later query a better chance of reaching the true neighbours.
+# Default is 100; ingestion is a one-off cost measured in seconds here.
+_CONSTRUCTION_EF = 400
+
 
 class EmbeddingModelMismatch(RuntimeError):
     """The collection was built with a different embedding model.
@@ -91,6 +129,8 @@ def open_collection(config: Config) -> chromadb.Collection:
         name=config.collection_name,
         metadata={
             "hnsw:space": _DISTANCE_SPACE,
+            "hnsw:search_ef": _SEARCH_EF,
+            "hnsw:construction_ef": _CONSTRUCTION_EF,
             _META_EMBEDDING_MODEL: config.embedding_model,
             _META_CHUNK_SIZE: config.chunk_size,
             _META_CHUNK_OVERLAP: config.chunk_overlap,
@@ -135,6 +175,8 @@ def reset_collection(config: Config) -> chromadb.Collection:
         name=config.collection_name,
         metadata={
             "hnsw:space": _DISTANCE_SPACE,
+            "hnsw:search_ef": _SEARCH_EF,
+            "hnsw:construction_ef": _CONSTRUCTION_EF,
             _META_EMBEDDING_MODEL: config.embedding_model,
             _META_CHUNK_SIZE: config.chunk_size,
             _META_CHUNK_OVERLAP: config.chunk_overlap,

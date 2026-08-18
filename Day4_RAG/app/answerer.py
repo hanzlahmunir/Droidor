@@ -11,6 +11,38 @@ checked against the sources actually sent. A citation pointing at [7] when six
 sources were provided is dropped -- a fabricated source is worse than none,
 because it looks like provenance while being invented.
 
+THE ONE HALLUCINATION THIS SYSTEM PRODUCED, AND THE RULE IT ADDED.
+Asked "Which Django version does the author recommend for production?", the
+model answered:
+
+    "The author points to the Django 6.0 documentation (e.g. the performance
+     and models topics are linked to /docs.djangoproject.com/en/6.0/),
+     indicating they recommend using Django 6.0 in production [3][6]."
+
+"6.0" appears in that article ONLY as a path segment inside documentation
+links -- docs.djangoproject.com/en/6.0/topics/performance/. The author never
+recommends a version. The model read a URL as a claim, and cited real chunks
+for it, which is what makes this failure mode dangerous: it looks sourced.
+
+It is intermittent -- 1 in 10 runs at temperature 0.1 -- which is exactly why
+it survived earlier testing.
+
+Rule 5 below was added for it: only PROSE states facts, and a link target is
+not something the author said. MEASURED, THE RULE DID NOT FIX IT: 1 in 10
+before, 1 in 10 after (10 trials each), with the rule verified present in the
+prompt the container sends. The rule is kept because it is correct and costs
+nothing, but it is documentation, not a fix.
+
+WHAT THIS SAYS ABOUT THE ARCHITECTURE. The prompt layer is a probabilistic
+filter, not a guarantee. It catches the near-miss questions reliably (6/6 on
+questions scoring up to 0.702) but it cannot be relied on for a specific
+failure mode, because "follow this instruction every time" is not something a
+sampled model does. A deterministic fix would have to live in code -- e.g.
+stripping URLs from chunk text before they reach the model, so a version
+number inside a documentation address is never visible as evidence. That is a
+real change with its own cost (links are sometimes the answer) and is not
+made here; it is written up in the README as the known limitation it is.
+
 A MEASURED PROPERTY OF THIS MODEL. openai/gpt-oss-120b is a REASONING model:
 it spends completion tokens on a hidden `reasoning` field before writing
 `content`. Measured on a RAG-shaped call, it used 251-273 tokens for an answer
@@ -47,7 +79,11 @@ Rules:
 4. Sources sharing a topic with the question is NOT the same as containing
    the answer. If they discuss the subject but omit the specific fact asked
    for, that is still {I_DONT_KNOW}
-5. Be concise. Two or three sentences is usually right.
+5. Only PROSE states facts. A URL, a link target, a version number inside a
+   documentation address, a file path or a citation marker is not a claim the
+   author made. If the only support for an answer is what a link points at
+   rather than what the text says, the answer is {I_DONT_KNOW}
+6. Be concise. Two or three sentences is usually right.
 """
 
 

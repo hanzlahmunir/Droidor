@@ -44,6 +44,31 @@ def populated(config) -> Config:
     return config
 
 
+def test_collection_pins_the_hnsw_search_parameters(populated):
+    # REGRESSION TEST FOR A SILENT WRONG-ANSWER BUG.
+    #
+    # Chroma's HNSW index is approximate: a query walks a graph rather than
+    # comparing against every vector, and the walk can stop early. At the
+    # default search_ef of 10 this produced a measurably wrong top-1 on the
+    # real 2195-chunk corpus -- 0.394 returned when exact cosine said 0.447 --
+    # and it ALTERNATED between the two across process starts. Because the
+    # true score sat just above the similarity floor, one eval question
+    # flipped between answered and refused at random.
+    #
+    # These parameters can only be set at creation, so a collection built
+    # without them is silently degraded. Pinning them here means a future
+    # refactor that drops them fails a test instead of quietly returning
+    # worse neighbours.
+    metadata = open_collection(populated).metadata or {}
+
+    assert metadata.get("hnsw:space") == "cosine", (
+        "cosine is required or `1 - distance` is not a similarity and the "
+        "configured floor is meaningless"
+    )
+    assert int(metadata.get("hnsw:search_ef", 0)) >= 100
+    assert int(metadata.get("hnsw:construction_ef", 0)) >= 200
+
+
 def test_distance_to_similarity_inverts_correctly():
     # A sign error here would retrieve the WORST match for every question
     # while looking entirely healthy, so it is worth pinning explicitly.

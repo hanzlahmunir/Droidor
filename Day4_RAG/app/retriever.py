@@ -75,9 +75,14 @@ class RetrievalResult:
         best = self.best_similarity
         if best is None:
             return "The vector store returned no chunks at all -- is anything ingested?"
+        # Both numbers at the same precision. The floor was printed at 2dp
+        # while the score used 3, so a floor of 0.425 rendered as "the
+        # required 0.42" -- a number that appears nowhere in the config and
+        # does not match the README, which is exactly the kind of small
+        # inconsistency that makes a reviewer distrust the rest of the output.
         return (
             f"The closest chunk scored {best:.3f}, below the required "
-            f"{self.floor:.2f}. Nothing in the corpus is a close enough match."
+            f"{self.floor:.3f}. Nothing in the corpus is a close enough match."
         )
 
 

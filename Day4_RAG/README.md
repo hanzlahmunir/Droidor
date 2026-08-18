@@ -147,6 +147,41 @@ Citations are **validated, not trusted**: any `[n]` pointing outside the
 sources actually sent is stripped. A fabricated citation is worse than none,
 because it looks like provenance while being invented.
 
+### The known limitation: a URL is not a claim
+
+One question in 43 produces an intermittent hallucination — **1 run in 10** at
+temperature 0.1:
+
+```text
+Q: Which Django version does the author recommend for production?
+A: The author points to the Django 6.0 documentation (e.g. the performance
+   and models topics are linked to /docs.djangoproject.com/en/6.0/),
+   indicating they recommend using Django 6.0 in production [3][6].
+```
+
+`6.0` appears in that article **only as a path segment inside documentation
+links** — `docs.djangoproject.com/en/6.0/topics/performance/`. The author never
+recommends a version.
+
+This is the most dangerous shape a RAG failure can take, because every
+safeguard reported success: retrieval found the right articles, the score
+cleared the floor (0.569), and the citations were *valid* — `[3]` and `[6]`
+point at real chunks that really were sent. Only reading the source text
+catches it. Retrieval metrics score this question as fine.
+
+A prompt rule was added for it ("only prose states facts; a link target is not
+a claim the author made") and **measured not to work**: 1 in 10 before, 1 in 10
+after, 10 trials each, with the rule verified present in the prompt. It is kept
+because it is correct and free, but it is documentation rather than a fix.
+
+The honest conclusion: **the prompt layer is a probabilistic filter, not a
+guarantee.** It catches near-miss questions reliably (6/6, including one
+scoring 0.702) but cannot be relied on for a specific failure mode, because
+"obey this instruction every time" is not something a sampled model does. A
+deterministic fix belongs in code — stripping URLs from chunk text before the
+model sees them — which has its own cost, since sometimes a link *is* the
+answer. Not done here, and named rather than hidden.
+
 ## Measured, not guessed
 
 Two numbers in this project were originally guesses. Both were wrong, and both
@@ -288,6 +323,57 @@ than any threshold tuning.
 **Citation metadata is denormalised onto every chunk.** A citation must be
 renderable from the chunk alone — no join, no second API call — and must
 survive the article later being deleted from Day 1.
+
+### The index was silently returning the wrong answer
+
+The one worth reading. Chroma indexes vectors with **HNSW**, a navigable
+graph: a query *walks* the graph toward the target instead of comparing
+against every vector. That is what keeps vector search fast at millions of
+vectors, and it means the result is **approximate** — the walk can terminate
+in a local minimum while a better match sits elsewhere, unvisited.
+
+Nothing reports this. You get plausible neighbours with plausible scores.
+
+Found by re-running the eval and getting a different answer:
+
+```text
+"Why did the author find Playwright unsatisfying for frontend tests?"
+
+  exact cosine over all 2195 chunks : 0.447   Testing Vue components
+  what the index returned           : 0.394   a different article entirely
+
+  six consecutive runs: 0.447 / 0.394 / 0.447 / 0.394 / 0.447 / 0.394
+```
+
+Stable *within* one process, different *between* process starts. And the true
+score (0.447) sits **0.022 above** the floor (0.425) — so a graph-traversal
+accident decided whether that question was answered or refused.
+
+**The fix:** `hnsw:search_ef` 10 → 200 and `hnsw:construction_ef` 100 → 400,
+set at collection creation (Chroma refuses to change index parameters on an
+existing collection, so this needs `ingest --reset`). `search_ef` is how many
+candidates the walk keeps in play; at the default of 10 the beam is far too
+narrow for a 2195-node graph. At this scale the cost is single-digit
+milliseconds.
+
+**Verify it yourself:**
+
+```bash
+docker compose run --rm rag eval --check-index
+# -> Checked 43 questions against exact cosine similarity.
+#    The index returned the true nearest chunk every time.
+```
+
+That command brute-forces exact cosine over the whole collection and reports
+every question where the index disagrees. It is deliberately O(n) — precisely
+what an index exists to avoid — so it is a diagnostic, not part of the query
+path. Before the fix it reported 2 of 43 questions with a sub-optimal top-1,
+worst gap 0.172.
+
+**The general lesson:** a vector database returns approximate results by
+default, and an eval measured through a mis-tuned index is not reproducible.
+Checking against brute force is cheap at this corpus size and is the only way
+to know.
 
 ## Bugs only a live run found
 

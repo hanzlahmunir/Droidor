@@ -1,8 +1,8 @@
 # Retrieval Evaluation
 
-Generated: 2026-08-17 15:10 UTC
+Generated: 2026-08-18 11:48 UTC
 
-Every number here is produced by `rag eval`, over 2183 chunks and the
+Every number here is produced by `rag eval`, over 2195 chunks and the
 question set in `data/eval_questions.json`. Re-run it to regenerate.
 
 ## What is measured
@@ -32,10 +32,10 @@ numbers depend on sampling.
   0.200   100.0%      0.0%         100.0%      50.0%
   0.225   100.0%      0.0%         100.0%      50.0%
   0.250   100.0%      0.0%         100.0%      50.0%
-  0.275   100.0%      7.7%          92.3%      53.8%
-  0.300   100.0%      7.7%          92.3%      53.8%
+  0.275   100.0%      0.0%         100.0%      50.0%
+  0.300   100.0%      0.0%         100.0%      50.0%
   0.325   100.0%     15.4%          84.6%      57.7%
-  0.350   100.0%     23.1%          76.9%      61.5%
+  0.350   100.0%     15.4%          84.6%      57.7%
   0.375   100.0%     38.5%          61.5%      69.2%
   0.400   100.0%     46.2%          53.8%      73.1%
   0.425   100.0%     53.8%          46.2%      76.9%

@@ -1,0 +1,299 @@
+[
+  {
+    "question": "What did running ANALYZE do to the slow SQLite query?",
+    "expected": "Learning a few things about running SQLite",
+    "best_similarity": 0.8086572289466858,
+    "answer": "Running `ANALYZE` caused SQLite to collect table statistics, which let the query planner pick a much more efficient execution plan. As a result the query that had taken about 5 seconds dropped to roughly 0.05 seconds [1][3].",
+    "cited": [
+      "Learning a few things about running SQLite (https://jvns.ca/blog/2026/07/17/learning-about-running-sqlite)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Which SQLite feature was being used for full-text search?",
+    "expected": "Learning a few things about running SQLite",
+    "best_similarity": 0.5633883476257324,
+    "answer": "The query was using SQLite’s **FTS5** full‑text search extension【1】.",
+    "cited": [
+      "Learning a few things about running SQLite (https://jvns.ca/blog/2026/07/17/learning-about-running-sqlite)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What caused the crashing bug in sqlite-utils 4.2?",
+    "expected": "Release: sqlite-utils 4.2.1",
+    "best_similarity": 0.8449007272720337,
+    "answer": "The crash was triggered by code that imported `Self` from the `typing_extensions` package, even though `typing‑extensions` wasn’t listed as a runtime dependency of sqlite‑utils. When the package wasn’t installed (e.g., when running the CLI without the dev‑dependency group), the import failed and caused the crash [2][4].",
+    "cited": [
+      "Release: sqlite-utils 4.2.1 (https://simonwillison.net/2026/Aug/13/sqlite-utils-2)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Which sqlite-utils feature got improvements for complex alter table operations?",
+    "expected": "Release: sqlite-utils 4.2",
+    "best_similarity": 0.7799744009971619,
+    "answer": "The `table.transform()` feature received the improvements for handling complex ALTER TABLE operations【1】.",
+    "cited": [
+      "Release: sqlite-utils 4.2 (https://simonwillison.net/2026/Aug/13/sqlite-utils)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What compression idea was prototyped for storing revision histories?",
+    "expected": "Research: SQLite compressed text-history prototypes",
+    "best_similarity": 0.6066972613334656,
+    "answer": "The prototype stored every prior version of a document in a single JSON array of strings and then compressed that whole array (using Zstandard or similar zlib/ZSTD compression) before saving it as a BLOB [1][2].",
+    "cited": [
+      "Research: SQLite compressed text-history prototypes (https://simonwillison.net/2026/Aug/9/sqlite-text-history-prototype)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Why did the author find Rails harder to return to than Django?",
+    "expected": "Some notes on starting to use Django",
+    "best_similarity": 0.5264361500740051,
+    "answer": "The author said that after being away from a Rails project for months it was hard to remember how to do anything because Rails hides where things like `resources :topics` are actually defined—its routing relies on conventions that aren’t obvious from the code alone, so you have to recall or look up the convention each time [6].",
+    "cited": [
+      "Some notes on starting to use Django (https://jvns.ca/blog/2026/01/27/some-notes-on-starting-to-use-django)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What is a query set class in Django used for?",
+    "expected": "Some more things about Django I've been enjoying",
+    "best_similarity": 0.7643418908119202,
+    "answer": "A query‑set class lets you add custom, chainable methods that encapsulate common `WHERE`‑style filters, so you can build queries like `Events.objects.approved().for_tab(...).is_free(...)` instead of writing the filters each time【1†L1-L7】. By defining methods such as `approved`, `future` or `with_tags` that return a filtered `self`, the class provides a reusable, readable query builder【3†L1-L7】.",
+    "cited": [
+      "Some more things about Django I've been enjoying (https://jvns.ca/blog/2026/07/21/more-nice-django-things)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Why did the author move away from Tailwind?",
+    "expected": "Moving away from Tailwind, and learning to structure my CSS",
+    "best_similarity": 0.6547015905380249,
+    "answer": "The author left Tailwind because it has become tightly tied to a build system and produces bulky CSS files, it limits “weird” or custom styling, and the author’s own CSS skills have improved enough to prefer writing vanilla CSS — additionally, mixing Tailwind with regular CSS proved hard to maintain and sparked a desire to write more semantic HTML and value human CSS expertise, especially in an era of LLMs [4][5][2][3].",
+    "cited": [
+      "Moving away from Tailwind, and learning to structure my CSS (https://jvns.ca/blog/2026/05/15/moving-away-from-tailwind--and-learning-to-structure-my-css-)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What does Tailwind's CSS reset set box-sizing to?",
+    "expected": "Moving away from Tailwind, and learning to structure my CSS",
+    "best_similarity": 0.7941266298294067,
+    "answer": "Tailwind’s reset applies `box-sizing: border-box` to every element (e.g., `* { box-sizing: border-box; }`)【1】.",
+    "cited": [
+      "Moving away from Tailwind, and learning to structure my CSS (https://jvns.ca/blog/2026/05/15/moving-away-from-tailwind--and-learning-to-structure-my-css-)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Why did the author want alternatives to Tailwind's colour palette?",
+    "expected": "Links to CSS colour palettes",
+    "best_similarity": 0.7786461114883423,
+    "answer": "The author isn’t confident picking colors themselves, so they rely on a well‑designed palette that “somebody who is better at colour than me has thought about” [1]. At the same time they were getting a bit bored with Tailwind’s built‑in shades and wanted to see other palettes to use instead [2].",
+    "cited": [
+      "Links to CSS colour palettes (https://jvns.ca/blog/2026/05/04/css-colour-palettes)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Why did the author find Playwright unsatisfying for frontend tests?",
+    "expected": "Testing Vue components in the browser",
+    "best_similarity": 0.4474421739578247,
+    "answer": "The author found Playwright unsatisfying because it felt slow and unwieldy to repeatedly start new browser processes, and it required using Node code to orchestrate the tests [1].",
+    "cited": [
+      "Testing Vue components in the browser (https://jvns.ca/blog/2026/05/02/testing-vue-components-in-the-browser)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "In an agentic coding session, why do input tokens dominate the bill?",
+    "expected": "Claude Code Cost Optimization: Cut Your Token Spend",
+    "best_similarity": 0.6886078119277954,
+    "answer": "Because the model is stateless, every turn must resend the entire conversation prefix—including the system prompt, tool definitions, all prior turns and any files read—so the same input tokens are sent over and over. This repeated input easily outweighs the output tokens by an order of magnitude, making input tokens the dominant cost in an agentic coding session【1†L1-L7】【2†L1-L5】.",
+    "cited": [
+      "Claude Code Cost Optimization: Cut Your Token Spend (https://www.claudedirectory.org/blog/claude-code-cost-optimization)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Is switching to a cheaper model the best first move for cutting cost?",
+    "expected": "Claude Code Cost Optimization: Cut Your Token Spend",
+    "best_similarity": 0.43607664108276367,
+    "answer": "No. Switching to a cheaper model isn’t automatically the cheapest first step, since a low‑cost model that fails can require re‑running the task on a stronger model and add context‑switch overhead, making the overall expense higher [1].",
+    "cited": [
+      "Claude Code Cost Optimization: Cut Your Token Spend (https://www.claudedirectory.org/blog/claude-code-cost-optimization)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "According to the leaked Accenture audio, who was driving token consumption?",
+    "expected": "The Tokenpocalypse Is Here: Companies Are Scrambling To Stop Spending So Much on AI",
+    "best_similarity": 0.6173444986343384,
+    "answer": "The leaked Accenture audio indicated that it wasn’t the engineers but “a lot of the non‑engineers” who were responsible for the bulk of token consumption【1】.",
+    "cited": [
+      "The Tokenpocalypse Is Here: Companies Are Scrambling To Stop Spending So Much on AI (https://simonwillison.net/2026/Aug/7/pdfs-are-terrible)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What is the main complaint about Qwen 3.8 27B's default behaviour?",
+    "expected": "Qwen 3.8 27B is excellent, but it defaults to wildly overthinking things",
+    "best_similarity": 0.6497020721435547,
+    "answer": "The model defaults to the **`xhigh` reasoning‑effort setting**, which makes it “over‑think” every prompt—using up the entire context window and running very slowly, especially on consumer‑grade hardware. This default behaviour is described as a bad way to run the model and the main source of complaint【1†L1-L7】【11†L1-L4】.",
+    "cited": [
+      "Qwen 3.8 27B is excellent, but it defaults to wildly overthinking things (https://simonwillison.net/2026/Aug/16/qwen-38-27b)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What is Cloudflare Artifacts?",
+    "expected": "Run CI/CD for millions of repos — on your platform, on Cloudflare",
+    "best_similarity": 0.6339726448059082,
+    "answer": "Cloudflare Artifacts is the version‑controlled code‑storage layer of Cloudflare’s CI/CD platform – a service that provides versioned storage for source code and can scale to millions of repositories, enabling builds, tests and deployments to run entirely on Cloudflare [2][9].",
+    "cited": [
+      "Run CI/CD for millions of repos — on your platform, on Cloudflare (https://blog.cloudflare.com/ci-workflows)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What is the Cloudflare CI SDK built on top of?",
+    "expected": "Run CI/CD for millions of repos — on your platform, on Cloudflare",
+    "best_similarity": 0.6132234930992126,
+    "answer": "I don't know.",
+    "cited": [],
+    "outcome": "REFUSED_BY_MODEL"
+  },
+  {
+    "question": "How many merges has Cloudflare's AI code reviewer blocked?",
+    "expected": "How Cloudflare enforces engineering standards using AI",
+    "best_similarity": 0.741989254951477,
+    "answer": "Cloudflare’s AI code reviewer has blocked 16,000 merges [1][2].",
+    "cited": [
+      "How Cloudflare enforces engineering standards using AI (https://blog.cloudflare.com/engineering-standards-enforcement)",
+      "How we’re rethinking work at Cloudflare with Cloudflare OS (https://blog.cloudflare.com/how-we-use-ai-with-cloudflare-os)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Why is it hard for AI agents to sign up for new APIs?",
+    "expected": "Announcing Cloudflare Wallets: The programmable wallet for the agentic Internet",
+    "best_similarity": 0.8210201263427734,
+    "answer": "AI agents struggle to sign up for new APIs because the onboarding flow is built for humans—they must deal with human‑focused login pages, get a human to add a payment method, and generate an API key—yet agents lack a stable identifier and a native way to pay for services, making the process difficult for them to complete [1][2].",
+    "cited": [
+      "Announcing Cloudflare Wallets: The programmable wallet for the agentic Internet (https://blog.cloudflare.com/wallets)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Why did Cloudflare decide to build its own browser?",
+    "expected": "Introducing Kitesurf: The agent-first browser that runs in V8 isolates on Cloudflare Workers",
+    "best_similarity": 0.7391729354858398,
+    "answer": "Cloudflare chose to build its own browser because the rise of AI agents created a demand for a new, “agent‑first” browsing experience, and recent advances in its platform (V8 isolates on Workers, mature WebAssembly support, and other technical breakthroughs) finally made it feasible to create a lean, low‑memory browser that serves agents rather than human‑oriented features [1][2][10].",
+    "cited": [
+      "Introducing Kitesurf: The agent-first browser that runs in V8 isolates on Cloudflare Workers (https://blog.cloudflare.com/kitesurf)",
+      "Building an open Agentic Internet: readable, discoverable, callable, and payable (https://blog.cloudflare.com/the-agentic-internet)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What assumption did BeyondCorp make that no longer holds for agents?",
+    "expected": "The Agent Access Model",
+    "best_similarity": 0.633827269077301,
+    "answer": "BeyondCorp assumed that the principal was a human user at a device, operating at human speed — an assumption that does not apply to software agents [1].",
+    "cited": [
+      "The Agent Access Model (https://blog.cloudflare.com/the-agent-access-model)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What did Cloudflare AI Search previously require developers to stitch together?",
+    "expected": "Cloudflare AI Search: give your agents a search engine for your data",
+    "best_similarity": 0.7990908622741699,
+    "answer": "Previously developers had to manually stitch together the various Cloudflare primitives—Workers AI, AI Gateway, Vectorize, R2 and Browser Run—to build a search solution [1].",
+    "cited": [
+      "Cloudflare AI Search: give your agents a search engine for your data (https://blog.cloudflare.com/ai-search-easier)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Why do quantum computers need constant recalibration?",
+    "expected": "Towards a quantum computer that learns from its errors",
+    "best_similarity": 0.6551276445388794,
+    "answer": "Quantum processors are extremely sensitive to tiny shifts in their control settings; even small hardware drift or imprecise calibration quickly introduces errors that degrade performance. Because useful algorithms must run continuously for long periods, the system’s parameters must be retuned on‑the‑fly to counteract this drift and keep error rates low【5†L1-L4】【4†L1-L4】.",
+    "cited": [
+      "Towards a quantum computer that learns from its errors (https://research.google/blog/towards-a-quantum-computer-that-learns-from-its-errors)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What technique was applied to quantum error correction control?",
+    "expected": "Towards a quantum computer that learns from its errors",
+    "best_similarity": 0.7111157178878784,
+    "answer": "Reinforcement‑learning (RL) was used to steer and continuously calibrate the control parameters of the quantum error‑correction system【2†source】【6†source】.",
+    "cited": [
+      "Towards a quantum computer that learns from its errors (https://research.google/blog/towards-a-quantum-computer-that-learns-from-its-errors)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "Where does the creativity of diffusion models come from?",
+    "expected": "Towards demystifying the creativity of diffusion models",
+    "best_similarity": 0.6991361975669861,
+    "outcome": "ERROR",
+    "answer": "The answer model call failed: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_<redacted>` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 7428, Requested 2240. Please try again in 12.51s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}"
+  },
+  {
+    "question": "Why is it hard to train models on wearable sensor data?",
+    "expected": "SensorFM: Towards a general intelligence and interface for wearable health data",
+    "best_similarity": 0.5580263137817383,
+    "answer": "Training models on wearable sensor data is difficult because the signals are highly variable across individuals—baseline physiology, lifestyle, and health differ widely—so patterns that indicate risk for one person may not for another, and the clinical labels needed for supervised learning are costly, slow to obtain, and often unavailable retrospectively【2】. In addition, wearable recordings are frequently incomplete or fragmented due to power‑cycling, devices being removed, and sensor on/off events, which conventional self‑supervised methods cannot handle without costly imputation or discarding data【1】【5】.",
+    "cited": [
+      "SensorFM: Towards a general intelligence and interface for wearable health data (https://research.google/blog/sensorfm-towards-a-general-intelligence-and-interface-for-wearable-health-data)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What problem does SymptomAI try to solve?",
+    "expected": "SymptomAI: Towards a conversational AI agent for everyday symptom assessment",
+    "best_similarity": 0.5825228691101074,
+    "answer": "SymptomAI is built to give people an accessible, AI‑driven way to interview themselves about health concerns and receive a plausible differential diagnosis—essentially providing timely, understandable symptom assessment for the general public when traditional clinical visits may be delayed or unavailable【1】. It aims to conduct end‑to‑end symptom interviews and diagnostic reasoning at scale, enabling population‑level health analysis and more immediate feedback on reported symptoms【7】.",
+    "cited": [
+      "SymptomAI: Towards a conversational AI agent for everyday symptom assessment (https://research.google/blog/symptomai-towards-a-conversational-ai-agent-for-everyday-symptom-assessment)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What hardware did the author run MiniMax-H3 on?",
+    "expected": "PipeNetwork/minimax-h3-mlx",
+    "best_similarity": 0.5535621047019958,
+    "answer": "The author ran MiniMax‑H3 on their M5 Max MacBook Pro [1].",
+    "cited": [
+      "PipeNetwork/minimax-h3-mlx (https://simonwillison.net/2026/Aug/4/minimax-h3-mlx)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What did Steve Yegge say went wrong with Gas Town?",
+    "expected": "A quote from Steve Yegge",
+    "best_similarity": 0.5119575262069702,
+    "answer": "Steve Yegge said that Gas Town “fell apart at the seams” when Opus 4.7 introduced a “just two more things” tic that kept Opus from ever converging on real work and forced it to keep fiddling with Gas Town itself, ultimately causing Gas Town to “burn down” (though it also had other problems)【1】.",
+    "cited": [
+      "A quote from Steve Yegge (https://simonwillison.net/2026/Aug/4/steve-yegge)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  },
+  {
+    "question": "What does the LLM release add support for regarding model reasoning?",
+    "expected": "New release of LLM adds support for reasoning traces, OpenAI Responses, server-side tools, and smarter logging",
+    "best_similarity": 0.6220296621322632,
+    "answer": "The new LLM 0.32 release adds support for displaying a model’s reasoning traces (visible reasoning) when you run it, with an option (`‑R/--hide‑reasoning`) to suppress that output [1].",
+    "cited": [
+      "New release of LLM adds support for reasoning traces, OpenAI Responses, server-side tools, and smarter logging (https://simonwillison.net/2026/Aug/4/new-release-of-llm)"
+    ],
+    "outcome": "CITED_EXPECTED"
+  }
+]

@@ -85,6 +85,16 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Write the results to data/reports/EVAL.md as well as printing them.",
     )
+    eval_cmd.add_argument(
+        "--check-index",
+        action="store_true",
+        help=(
+            "Also verify the approximate HNSW index against exact cosine "
+            "similarity over the whole collection. Slow by design -- brute "
+            "force is what the index exists to avoid -- but it is the only "
+            "way to see that the index is returning the true nearest chunks."
+        ),
+    )
 
     return parser
 
@@ -254,6 +264,21 @@ def cmd_eval(config: Config, args: argparse.Namespace) -> int:
         return 1
 
     embedder = SentenceTransformerEmbedder(config)
+
+    if args.check_index:
+        from app.evaluate import load_questions
+        from app.index_check import check_index, format_check
+
+        answerable, unanswerable = load_questions(config)
+        questions = [q["question"] for q in answerable + unanswerable]
+
+        print("Verifying the index against exact cosine similarity...")
+        all_results, misses = check_index(
+            questions, config, embedder, collection=collection
+        )
+        print(format_check(all_results, misses))
+        print()
+
     print("Running retrieval over the evaluation set...")
     points, results = sweep(config, embedder, collection=collection)
 
