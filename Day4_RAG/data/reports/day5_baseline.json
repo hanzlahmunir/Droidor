@@ -1,0 +1,469 @@
+{
+  "config": {
+    "chunks": 2195,
+    "top_k": 12,
+    "similarity_floor": 0.425,
+    "chunk_size": 700,
+    "answer_model": "openai/gpt-oss-120b",
+    "llm": true
+  },
+  "questions": [
+    {
+      "id": 1,
+      "question": "Which command fixed the slow full-text search query, and how much faster did it get?",
+      "type": "single",
+      "expected": [
+        2
+      ],
+      "ranked_articles": [
+        2,
+        25,
+        95,
+        74,
+        20,
+        7,
+        46
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.5923413634300232,
+      "answer": "Running `ANALYZE` fixed the slow full\u2011text search query, cutting the execution time from about\u202f5\u202fseconds to roughly\u202f0.05\u202fseconds \u2013 a speed\u2011up on the order of a hundred\u2011fold\u30101\u3011.",
+      "error": ""
+    },
+    {
+      "id": 2,
+      "question": "Why do the cleanup deletes cause a worker to crash?",
+      "type": "single",
+      "expected": [
+        2
+      ],
+      "ranked_articles": [
+        2,
+        104,
+        33,
+        26,
+        78,
+        89,
+        81
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.5880073308944702,
+      "answer": "The cleanup\u202fDELETE statements run for longer than the 5\u2011second lock timeout, so they keep the SQLite write lock held while they execute. When another worker later tries to write, it hits the timeout, cannot obtain the lock, and crashes (the VM shuts down) because it couldn\u2019t write to the database\u30101\u2020L1-L4\u3011\u30102\u2020L1-L2\u3011.",
+      "error": ""
+    },
+    {
+      "id": 3,
+      "question": "What are the two backup methods described for a SQLite database?",
+      "type": "single",
+      "expected": [
+        2
+      ],
+      "ranked_articles": [
+        2,
+        23,
+        43,
+        46,
+        50,
+        42
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6684603691101074,
+      "answer": "The post lists two ways to back up a SQLite database: using **restic** (way\u202f1) and using **Litestream** (way\u202f2)\u30101\u2020L1-L3\u3011\u30105\u2020L1-L3\u3011.",
+      "error": ""
+    },
+    {
+      "id": 4,
+      "question": "Why does adding a second grep to a pipe make the output disappear?",
+      "type": "single",
+      "expected": [
+        33
+      ],
+      "ranked_articles": [
+        33
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6288093328475952,
+      "answer": "Adding a second\u202f`grep` puts the output of the first\u202f`grep` into a pipe instead of directly to the terminal.\u202fWhen\u202f`grep`\u2019s stdout is not a terminal it switches from line\u2011buffering to block\u2011buffering (about 8\u202fKB), so it holds its matches in memory until the buffer fills or the program exits\u202f\u2014\u202fit never writes them to the pipe in the meantime\u202f[5][3]. Because the first\u202f`grep` doesn\u2019t flush its data, the second\u202f`grep` receives nothing and no output appears\u202f[1][2].",
+      "error": ""
+    },
+    {
+      "id": 5,
+      "question": "Which flag makes grep print each line immediately when writing to a pipe?",
+      "type": "single",
+      "expected": [
+        33
+      ],
+      "ranked_articles": [
+        33
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6184902191162109,
+      "answer": "The flag is `--line\u2011buffered` (or `-\u2011\u2011line\u2011buffered`), which tells\u202fgrep to use line buffering so each matching line is written out immediately when its output is a pipe\u30102\u2020L9-L12\u3011\u30109\u2020L1-L4\u3011",
+      "error": ""
+    },
+    {
+      "id": 6,
+      "question": "How do I tell which shell I am actually running?",
+      "type": "single",
+      "expected": [
+        29
+      ],
+      "ranked_articles": [
+        32,
+        29,
+        31,
+        30
+      ],
+      "top_1": false,
+      "top_5": true,
+      "answer_correct": false,
+      "refused": true,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.4402211904525757,
+      "answer": "I don't know.",
+      "error": ""
+    },
+    {
+      "id": 7,
+      "question": "If the wrong version of a program keeps running, what needs to change about PATH?",
+      "type": "single",
+      "expected": [
+        29
+      ],
+      "ranked_articles": [
+        29,
+        32
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.5063633322715759,
+      "answer": "You need to put the directory that holds the desired version at the **front** of\u202f`PATH` (e.g., `export PATH=/opt/homebrew/bin/:$PATH`) so it\u2019s searched before the other location.\u202f[1]",
+      "error": ""
+    },
+    {
+      "id": 8,
+      "question": "Across both Django posts, what does the author like about migrations, and how many have they run?",
+      "type": "multi",
+      "expected": [
+        23,
+        1
+      ],
+      "ranked_articles": [
+        1,
+        23,
+        2
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6615704298019409,
+      "answer": "The author likes that Django creates migration scripts automatically when a model is added, changed, or removed \u2013 it feels \u201cmagic\u201d and lets them edit the database just by editing\u202f`models.py`\u202f[1][2].  So far they have run 19 database migrations\u202f[1].",
+      "error": ""
+    },
+    {
+      "id": 9,
+      "question": "What does the author use SQLite for in the Django project, and what problem did they hit operating it?",
+      "type": "multi",
+      "expected": [
+        23,
+        2
+      ],
+      "ranked_articles": [
+        2,
+        23,
+        42,
+        43,
+        46,
+        1
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": false,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [
+        "ANALYZE"
+      ],
+      "best_similarity": 0.7824341058731079,
+      "answer": "The author is using SQLite as the database backend for a Django web site\u202f\u2014\u202fthe Django ORM is pointed at a single SQLite file and they even enable WAL mode and use\u202f`VACUUM INTO` for backups\u202f[1][3].  The difficulty they ran into was that, despite SQLite\u2019s simplicity, they \u201cdo not know a lot about operating databases,\u201d so managing SQLite (e.g., tuning it for production) proved harder than expected\u202f[1][3].",
+      "error": ""
+    },
+    {
+      "id": 10,
+      "question": "How does the author describe Django's ORM syntax for joins, and what query builder pattern was built on top of it?",
+      "type": "multi",
+      "expected": [
+        23,
+        1
+      ],
+      "ranked_articles": [
+        23,
+        2,
+        1
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.7269415259361267,
+      "answer": "The author notes that Django\u2019s ORM lets you follow relationships with a double\u2011underscore, so a lookup like  \n\n```python\nZine.objects.exclude(product__order__email_hash=email_hash)\n```  \n\nuses `__` to tell Django to generate the necessary JOINs across the related tables\u202f[1].  \n\nOn top of that they created a query\u2011builder style by defining a custom `QuerySet` subclass whose methods each add a filter and return the queryset, allowing calls such as  \n\n```python\nEvents.objects.approved().for_tab(tab).with_festivals(...).is_free(...).is_outdoors(...)\n```  \n\nto be chained together\u202f[4].",
+      "error": ""
+    },
+    {
+      "id": 11,
+      "question": "What did the author keep from Tailwind after moving off it, and where else do they write about colour palettes?",
+      "type": "multi",
+      "expected": [
+        3,
+        4
+      ],
+      "ranked_articles": [
+        4,
+        3,
+        30
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6429664492607117,
+      "answer": "The author kept the Tailwind systems they liked \u2013 the reset stylesheet, the colour\u2011palette system, and the font\u2011scale \u2013 when they moved to vanilla CSS\u30103\u3011.  \nThey also discuss colour palettes in a separate blog post titled \u201cCSS colour palettes\u201d (https://jvns.ca/blog/2026/05/04/css-colour-palettes/)\u30103\u3011.",
+      "error": ""
+    },
+    {
+      "id": 12,
+      "question": "What did the terminal zine cover, and which specific escape-code behaviour is documented separately?",
+      "type": "multi",
+      "expected": [
+        26,
+        28
+      ],
+      "ranked_articles": [
+        28,
+        26
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": false,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [
+        "ANSI"
+      ],
+      "best_similarity": 0.632438063621521,
+      "answer": "The \u201cSecret Rules of the Terminal\u201d zine walked through a handful of practical terminal tricks \u2013 for example how to copy text to the clipboard over SSH, what the `reset` command actually does (`stty sane; sleep\u202f1; tput reset`), how to capture the invisible escape sequences a program emits, and why the built\u2011in REPLs on macOS are difficult to use because they rely on\u202f`libedit`\u202finstead of\u202f`readline`\u202f[4].  \n\nOne escape\u2011code behaviour that is treated in its own discussion is the OSC\u202f52 sequence that lets a program copy data to the system clipboard\u202f[2].",
+      "error": ""
+    },
+    {
+      "id": 13,
+      "question": "What editor did the author switch to, and what did they say about configuring their shell the same way?",
+      "type": "multi",
+      "expected": [
+        25
+      ],
+      "ranked_articles": [
+        26,
+        30,
+        31
+      ],
+      "top_1": false,
+      "top_5": false,
+      "answer_correct": false,
+      "refused": true,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.4449593424797058,
+      "answer": "I don't know.",
+      "error": ""
+    },
+    {
+      "id": 14,
+      "question": "How many copies of the terminal zine were sold in the first week?",
+      "type": "unanswerable",
+      "expected": [],
+      "ranked_articles": [
+        26,
+        30,
+        60,
+        37,
+        31,
+        29
+      ],
+      "top_1": false,
+      "top_5": false,
+      "answer_correct": false,
+      "refused": true,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6376376748085022,
+      "answer": "I don't know.",
+      "error": ""
+    },
+    {
+      "id": 15,
+      "question": "Which industry was the most attacked in the second half of 2026?",
+      "type": "unanswerable",
+      "expected": [],
+      "ranked_articles": [
+        67,
+        56,
+        38,
+        100,
+        47
+      ],
+      "top_1": false,
+      "top_5": false,
+      "answer_correct": false,
+      "refused": true,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6185914278030396,
+      "answer": "I don't know.",
+      "error": ""
+    },
+    {
+      "id": 16,
+      "question": "What did it cost per rater to collect the DICES safety ratings?",
+      "type": "unanswerable",
+      "expected": [],
+      "ranked_articles": [
+        108,
+        111,
+        83,
+        20,
+        11,
+        74,
+        14
+      ],
+      "top_1": false,
+      "top_5": false,
+      "answer_correct": false,
+      "refused": true,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.4406864643096924,
+      "answer": "I don't know.",
+      "error": ""
+    },
+    {
+      "id": 17,
+      "question": "What version of Helix fixed the panic in transaction.rs?",
+      "type": "unanswerable",
+      "expected": [],
+      "ranked_articles": [
+        25,
+        49,
+        2,
+        43
+      ],
+      "top_1": false,
+      "top_5": false,
+      "answer_correct": false,
+      "refused": true,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6114126443862915,
+      "answer": "I don't know.",
+      "error": ""
+    },
+    {
+      "id": 18,
+      "question": "sqlite analyze slow query django",
+      "type": "vague",
+      "expected": [
+        2
+      ],
+      "ranked_articles": [
+        2,
+        1,
+        23,
+        43
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.668267548084259,
+      "answer": "Running `ANALYZE` on the SQLite database can dramatically speed up a slow Django ORM query.\u202fAfter collecting statistics with `ANALYZE`, SQLite was able to choose a much better query plan, dropping a 5\u2011second query to a few hundredths of a second\u202f[2].",
+      "error": ""
+    },
+    {
+      "id": 19,
+      "question": "pipe grep no output why",
+      "type": "vague",
+      "expected": [
+        33
+      ],
+      "ranked_articles": [
+        33
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.616989254951477,
+      "answer": "`grep` buffers its output when its stdout is not a terminal. In a pipeline such as  \n\n```\ntail -f file | grep thing1 | grep thing2\n```  \n\nthe first `grep` writes to a pipe, so it uses block buffering (about 8\u202fKB) instead of line\u2011by\u2011line output. It keeps its matches in the buffer until the buffer fills or the program exits, so the second `grep` receives nothing and you see no output even though matches exist\u30102\u2020L1-L4\u3011\u30103\u2020L1-L2\u3011\u30104\u2020L1-L4\u3011. This buffering behavior is why the pipeline appears \u201cstuck\u201d.",
+      "error": ""
+    },
+    {
+      "id": 20,
+      "question": "add folder to path zsh",
+      "type": "vague",
+      "expected": [
+        29
+      ],
+      "ranked_articles": [
+        29
+      ],
+      "top_1": true,
+      "top_5": true,
+      "answer_correct": true,
+      "refused": false,
+      "refused_before_llm": false,
+      "missing_tokens": [],
+      "best_similarity": 0.6520522236824036,
+      "answer": "To add a directory to\u202f`PATH` in\u202fzsh, edit your\u202f`~/.zshrc` (or whatever file your zsh reads) and add a line such as:\n\n```zsh\n# using the zsh array syntax\npath=(\n  $path\n  /full/or/relative/path/to/your/folder\n)\n```\n\n(You can also use the more familiar `export PATH=$PATH:/your/folder`, but the `path=` array form is the idiomatic zsh way.)\u202f\u30101\u3011",
+      "error": ""
+    }
+  ]
+}

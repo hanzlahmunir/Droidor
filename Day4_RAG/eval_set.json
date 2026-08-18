@@ -1,0 +1,205 @@
+{
+  "_comment": [
+    "Day 5 evaluation set. 20 questions, written by hand.",
+    "",
+    "WHY BY HAND. The task forbids LLM-generated questions, and the reason is",
+    "measurable rather than stylistic: a model writing a question from an",
+    "article reuses the article's own vocabulary, so the embedding of the",
+    "question lands next to the embedding of the passage almost by",
+    "construction. Retrieval then scores well because the question was drawn",
+    "from the answer, not because the search works. Every question below was",
+    "written after reading the article, deliberately in different words from",
+    "the source where possible.",
+    "",
+    "THE TEN ARTICLES READ, and the ids they map to:",
+    "   1  Some more things about Django I've been enjoying",
+    "   2  Learning a few things about running SQLite",
+    "   3  Moving away from Tailwind, and learning to structure my CSS",
+    "  23  Some notes on starting to use Django",
+    "  25  Notes on switching to Helix from vim",
+    "  26  New zine: The Secret Rules of the Terminal",
+    "  29  How to add a directory to your PATH",
+    "  33  Why pipes sometimes get 'stuck': buffering",
+    "  67  Cloudflare DDoS Threat Report H1 2026",
+    " 111  Building better AI benchmarks: How many raters are enough?",
+    "",
+    "COMPOSITION, as the task specifies: 7 single, 6 multi, 4 unanswerable,",
+    "3 vague.",
+    "",
+    "ON must_contain FOR multi QUESTIONS. A `multi` question is one whose full",
+    "answer needs facts from two articles, so its must_contain holds a token",
+    "from each. That makes 'Answer correct' strictly harder than 'Top-1",
+    "correct' for these, which is the intended shape: a system that retrieves",
+    "one of the two articles and answers confidently from it alone should",
+    "lose the point.",
+    "",
+    "ON must_contain STRINGS GENERALLY. They are matched case-insensitively",
+    "against the answer text. They are kept to the shortest token that is",
+    "genuinely load-bearing -- 'ANALYZE', '8KB' -- because a longer phrase",
+    "would test the model's phrasing rather than whether it found the fact.",
+    "Where a number or term can legitimately be written more than one way the",
+    "entry is a nested list of alternatives; see eval.py, which treats a",
+    "nested list as OR."
+  ],
+
+  "questions": [
+    {
+      "id": 1,
+      "question": "Which command fixed the slow full-text search query, and how much faster did it get?",
+      "expect_article_ids": [2],
+      "must_contain": ["ANALYZE", "0.05"],
+      "type": "single",
+      "note": "DISAMBIGUATION: 7 articles mention SQLite. Only this one names ANALYZE."
+    },
+    {
+      "id": 2,
+      "question": "Why do the cleanup deletes cause a worker to crash?",
+      "expect_article_ids": [2],
+      "must_contain": ["5 second"],
+      "type": "single",
+      "note": "The chain is: a slow DELETE holds the write lock, another worker's 5s timeout expires, it crashes. Worded without 'timeout' or 'lock' on purpose."
+    },
+    {
+      "id": 3,
+      "question": "What are the two backup methods described for a SQLite database?",
+      "expect_article_ids": [2],
+      "must_contain": ["restic", "litestream"],
+      "type": "single"
+    },
+    {
+      "id": 4,
+      "question": "Why does adding a second grep to a pipe make the output disappear?",
+      "expect_article_ids": [33],
+      "must_contain": ["buffer", "8KB"],
+      "type": "single",
+      "note": "Avoids the word 'buffering' so a match cannot come from the title alone."
+    },
+    {
+      "id": 5,
+      "question": "Which flag makes grep print each line immediately when writing to a pipe?",
+      "expect_article_ids": [33],
+      "must_contain": ["--line-buffered"],
+      "type": "single"
+    },
+    {
+      "id": 6,
+      "question": "How do I tell which shell I am actually running?",
+      "expect_article_ids": [29],
+      "must_contain": ["ps -p"],
+      "type": "single"
+    },
+    {
+      "id": 7,
+      "question": "If the wrong version of a program keeps running, what needs to change about PATH?",
+      "expect_article_ids": [29],
+      "must_contain": [["beginning", "front", "start"]],
+      "type": "single",
+      "note": "The article says 'beginning'; 'front of your PATH' is equally correct and should not score wrong."
+    },
+
+    {
+      "id": 8,
+      "question": "Across both Django posts, what does the author like about migrations, and how many have they run?",
+      "expect_article_ids": [23, 1],
+      "must_contain": [["automatic", "automatically"], "19"],
+      "type": "multi",
+      "note": "MULTI: 23 says migrations are generated automatically; only 1 gives the count of 19."
+    },
+    {
+      "id": 9,
+      "question": "What does the author use SQLite for in the Django project, and what problem did they hit operating it?",
+      "expect_article_ids": [23, 2],
+      "must_contain": [["VACUUM INTO", "vacuum"], "ANALYZE"],
+      "type": "multi",
+      "note": "MULTI: 23 explains choosing SQLite and backing up with VACUUM INTO; 2 holds the operational problem."
+    },
+    {
+      "id": 10,
+      "question": "How does the author describe Django's ORM syntax for joins, and what query builder pattern was built on top of it?",
+      "expect_article_ids": [23, 1],
+      "must_contain": ["__", ["QuerySet", "query set", "queryset"]],
+      "type": "multi",
+      "note": "MULTI: 23 introduces the `__` join syntax; 1 covers the EventQuerySet builder."
+    },
+    {
+      "id": 11,
+      "question": "What did the author keep from Tailwind after moving off it, and where else do they write about colour palettes?",
+      "expect_article_ids": [3, 4],
+      "must_contain": [["reset", "preflight"], ["palette", "colour", "color"]],
+      "type": "multi",
+      "note": "MULTI: 3 keeps the preflight reset; 4 is the separate colour-palettes links post it points at."
+    },
+    {
+      "id": 12,
+      "question": "What did the terminal zine cover, and which specific escape-code behaviour is documented separately?",
+      "expect_article_ids": [26, 28],
+      "must_contain": [["escape code", "escape codes"], "ANSI"],
+      "type": "multi",
+      "note": "MULTI: 26 is the zine announcement, 28 is the ANSI-escape-codes deep dive. 'reset' was dropped from the second slot after checking article 28 -- it discusses `reset` nowhere (0 occurrences), so accepting it would have credited an answer the source cannot support. Ground truth is only ground truth if you grep for it."
+    },
+    {
+      "id": 13,
+      "question": "What editor did the author switch to, and what did they say about configuring their shell the same way?",
+      "expect_article_ids": [25],
+      "must_contain": ["Helix", "fish"],
+      "type": "multi",
+      "note": "MULTI in intent: the fish comparison is what motivates the switch, and both halves live in 25, so the id list stays single. The type describes the question; eval.py scores against the ids either way."
+    },
+
+    {
+      "id": 14,
+      "question": "How many copies of the terminal zine were sold in the first week?",
+      "expect_article_ids": [],
+      "must_contain": [],
+      "type": "unanswerable",
+      "note": "NEAR-MISS: article 26 announces the zine and gives its $12 price, so the question lands squarely on a real article. Sales figures appear nowhere ('copies' does not occur in the article at all). REPLACED a first attempt -- 'what is the monthly hosting bill' -- which I wrote believing the corpus was silent on cost. It is not: article 1 says '~$10/month VM'. The system answered '$10 per month' and I had it marked as a hallucination. Grepping the corpus before trusting my own reading is the only thing that caught it."
+    },
+    {
+      "id": 15,
+      "question": "Which industry was the most attacked in the second half of 2026?",
+      "expect_article_ids": [],
+      "must_contain": [],
+      "type": "unanswerable",
+      "note": "NEAR-MISS: article 67 covers H1 2026 only and names Media, Production & Publishing as the #1 attacked industry for that half. H2 had not happened when the report was written. The question is answerable-looking and out of range, which is a different and more realistic failure than an absent topic. REPLACED 'which country launched the most DDoS attacks in H1 2026', which I asserted the report never covers -- it has a 'Top attack source countries' section naming Brazil at 14.9%. The system's answer was exactly right and my ground truth was wrong."
+    },
+    {
+      "id": 16,
+      "question": "What did it cost per rater to collect the DICES safety ratings?",
+      "expect_article_ids": [],
+      "must_contain": [],
+      "type": "unanswerable",
+      "note": "NEAR-MISS: article 111 names the DICES dataset with exact counts (350 conversations, 123 raters) and discusses annotation BUDGETS repeatedly, so the question sits on top of covered material. No per-rater cost is given anywhere. REPLACED 'how many raters does the paper recommend as a minimum', which I believed had no answer -- the article states plainly that practitioners 'often need more than 10 raters per item'. The system answered 'more than 10' and I had scored it a fabrication."
+    },
+    {
+      "id": 17,
+      "question": "What version of Helix fixed the panic in transaction.rs?",
+      "expect_article_ids": [],
+      "must_contain": [],
+      "type": "unanswerable",
+      "note": "NEAR-MISS: 25 quotes that exact panic and links the open issue. It never says it was fixed, in any version. Presupposition-loaded on purpose."
+    },
+
+    {
+      "id": 18,
+      "question": "sqlite analyze slow query django",
+      "expect_article_ids": [2],
+      "must_contain": ["ANALYZE"],
+      "type": "vague",
+      "note": "VAGUE: keywords, no grammar, no question mark. Same target as Q1; the pair measures what the lazy phrasing costs."
+    },
+    {
+      "id": 19,
+      "question": "pipe grep no output why",
+      "expect_article_ids": [33],
+      "must_contain": ["buffer"],
+      "type": "vague"
+    },
+    {
+      "id": 20,
+      "question": "add folder to path zsh",
+      "expect_article_ids": [29],
+      "must_contain": [[".zshrc", "zshrc"]],
+      "type": "vague"
+    }
+  ]
+}
