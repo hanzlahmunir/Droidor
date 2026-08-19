@@ -1,0 +1,132 @@
+# THE WHOLE DEMO:
+#
+#   docker compose run --rm eval              the five-line score
+#   docker compose run --rm eval --verbose    plus a per-question table
+#   docker compose run --rm eval --no-llm     retrieval only, no API key
+#   docker compose run --rm tests             offline suite
+#
+# `run`, not `up`: this is a measurement that runs and exits, not a service.
+# There is nothing to leave running, so there is no `up` here at all.
+#
+# WHAT IT DEPENDS ON, and why none of it is copied.
+#
+#   db    Postgres holding the corpus. Day 3's volume, attached read-only in
+#         spirit -- Day 5 only reads through the API.
+#   api   the Day 1 Documents API, BUILT FROM SOURCE at ../Day1_Documents-API.
+#   base  the Day 4 image, BUILT FROM SOURCE at ../Day4_RAG. This is the code
+#         under measurement. Building it rather than copying it is the point:
+#         a score that describes a stale copy of the retriever is worse than
+#         no score, because it looks valid.
+#
+# The chroma_db mount is the one genuinely fragile piece and it is called out
+# in the README: Day 5 READS the index Day 4 wrote. If Day 4 has not ingested,
+# the collection is empty and eval.py refuses to score rather than printing
+# 0/16 -- an empty index and a broken retriever must not look alike.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-docuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-docpass}
+      POSTGRES_DB: ${POSTGRES_DB:-documents}
+    volumes:
+      # Day 3's volume. See the note at the bottom of this file.
+      - day3_crawler_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-docuser} -d ${POSTGRES_DB:-documents}"]
+      interval: 3s
+      timeout: 3s
+      retries: 15
+
+  api:
+    # The real Day 1 code at its current revision, not a copy.
+    build: ../Day1_Documents-API
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-docuser}:${POSTGRES_PASSWORD:-docpass}@db:5432/${POSTGRES_DB:-documents}
+    depends_on:
+      db:
+        condition: service_healthy
+    # NO ports mapping, unlike Day 4.
+    #
+    # Day 4 already publishes :8000, and both stacks share one database. If
+    # both mapped the port, whichever started second would die with "port is
+    # already allocated" -- a known open item from Day 4, and there is no
+    # reason for Day 5 to add a second instance of it. Day 5 reaches the API
+    # over the compose network as http://api:8000, so the mapping buys nothing.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # The Day 4 image, built here only so `eval` and `tests` can be FROM it.
+  # `profiles` keeps it out of every normal command: it is a build target, not
+  # something to run. Its entrypoint is never used.
+  base:
+    build: ../Day4_RAG
+    image: day4_rag-base
+    profiles: ["build-only"]
+    entrypoint: ["true"]
+
+  # THE DELIVERABLE. `docker compose run --rm eval`
+  eval:
+    build:
+      context: .
+      args:
+        DAY4_IMAGE: day4_rag-base
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      API_BASE_URL: http://api:8000
+      CHROMA_DIR: /app/chroma_db
+      # Needed for the two lines that require answers. Without it, retrieval
+      # still scores and eval.py says which half is unavailable -- it does not
+      # fail obscurely. `--no-llm` is the explicit form of the same thing.
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      # Must MATCH what Day 4 ingested with. These do not re-chunk anything at
+      # eval time, but TOP_K and SIMILARITY_FLOOR change what is retrieved and
+      # what is refused, so a score is only comparable to another score taken
+      # at the same settings. RESULTS.md records the values it was taken at.
+      CHUNK_SIZE: ${CHUNK_SIZE:-700}
+      CHUNK_OVERLAP: ${CHUNK_OVERLAP:-150}
+      TOP_K: ${TOP_K:-12}
+      SIMILARITY_FLOOR: ${SIMILARITY_FLOOR:-0.425}
+      ANSWER_MODEL: ${ANSWER_MODEL:-openai/gpt-oss-120b}
+    volumes:
+      # READ THIS ONE. The vector index Day 4 built, by relative path into the
+      # sibling directory. Day 5 computes no embeddings and ingests nothing --
+      # it measures what Day 4 indexed. If ../Day4_RAG/chroma_db is empty,
+      # ingest in Day 4 first; eval.py says so by name.
+      - ../Day4_RAG/chroma_db:/app/chroma_db
+      # Reports out. Mounted so --json-out survives the container.
+      - ./data:/app/data
+    entrypoint: ["python", "eval.py"]
+
+  # Offline suite: Day 5's scoring tests AND Day 4's, so this also proves
+  # Day 5 did not break what it builds on.
+  #   docker compose run --rm tests
+  tests:
+    build:
+      context: .
+      args:
+        DAY4_IMAGE: day4_rag-base
+    environment:
+      # Deliberately NO GROQ_API_KEY and NO api dependency: the suite must pass
+      # with no network, no key and no database, which is what makes it CI-safe.
+      CHROMA_DIR: /tmp/chroma_test
+    entrypoint: ["python", "-m", "pytest", "-q"]
+
+volumes:
+  # Day 3's volume, attached rather than created -- identical reasoning to
+  # Day 4's compose file. A plain `pgdata:` here would namespace to
+  # `day5_eval_pgdata`, create an EMPTY Postgres, and the API would come up
+  # healthy serving zero articles. Every container green, corpus absent, and
+  # every question scoring as a retrieval failure.
+  #
+  # `external: true` turns that silent-wrong-score into an immediate, readable
+  # startup failure. Given yesterday cost three questions to ground truth that
+  # was quietly wrong, failing loudly is the whole point.
+  day3_crawler_pgdata:
+    external: true

@@ -41,111 +41,242 @@
     "entry is a nested list of alternatives; see eval.py, which treats a",
     "nested list as OR."
   ],
-
   "questions": [
     {
       "id": 1,
       "question": "Which command fixed the slow full-text search query, and how much faster did it get?",
-      "expect_article_ids": [2],
-      "must_contain": ["ANALYZE", "0.05"],
+      "expect_article_ids": [
+        2
+      ],
+      "must_contain": [
+        "ANALYZE",
+        "0.05"
+      ],
       "type": "single",
-      "note": "DISAMBIGUATION: 7 articles mention SQLite. Only this one names ANALYZE."
+      "note": "DISAMBIGUATION: 7 articles mention SQLite. Only this one names ANALYZE.",
+      "_titles": {
+        "2": "Learning a few things about running SQLite"
+      }
     },
     {
       "id": 2,
       "question": "Why do the cleanup deletes cause a worker to crash?",
-      "expect_article_ids": [2],
-      "must_contain": ["5 second"],
+      "expect_article_ids": [
+        2
+      ],
+      "must_contain": [
+        "5 second"
+      ],
       "type": "single",
-      "note": "The chain is: a slow DELETE holds the write lock, another worker's 5s timeout expires, it crashes. Worded without 'timeout' or 'lock' on purpose."
+      "note": "The chain is: a slow DELETE holds the write lock, another worker's 5s timeout expires, it crashes. Worded without 'timeout' or 'lock' on purpose.",
+      "_titles": {
+        "2": "Learning a few things about running SQLite"
+      }
     },
     {
       "id": 3,
       "question": "What are the two backup methods described for a SQLite database?",
-      "expect_article_ids": [2],
-      "must_contain": ["restic", "litestream"],
-      "type": "single"
+      "expect_article_ids": [
+        2
+      ],
+      "must_contain": [
+        "restic",
+        "litestream"
+      ],
+      "type": "single",
+      "_titles": {
+        "2": "Learning a few things about running SQLite"
+      }
     },
     {
       "id": 4,
       "question": "Why does adding a second grep to a pipe make the output disappear?",
-      "expect_article_ids": [33],
-      "must_contain": ["buffer", "8KB"],
+      "expect_article_ids": [
+        33
+      ],
+      "must_contain": [
+        "buffer",
+        "8KB"
+      ],
       "type": "single",
-      "note": "Avoids the word 'buffering' so a match cannot come from the title alone."
+      "note": "Avoids the word 'buffering' so a match cannot come from the title alone.",
+      "_titles": {
+        "33": "Why pipes sometimes get \"stuck\": buffering"
+      }
     },
     {
       "id": 5,
       "question": "Which flag makes grep print each line immediately when writing to a pipe?",
-      "expect_article_ids": [33],
-      "must_contain": ["--line-buffered"],
-      "type": "single"
+      "expect_article_ids": [
+        33
+      ],
+      "must_contain": [
+        "--line-buffered"
+      ],
+      "type": "single",
+      "_titles": {
+        "33": "Why pipes sometimes get \"stuck\": buffering"
+      }
     },
     {
       "id": 6,
       "question": "How do I tell which shell I am actually running?",
-      "expect_article_ids": [29],
-      "must_contain": ["ps -p"],
-      "type": "single"
+      "expect_article_ids": [
+        29
+      ],
+      "must_contain": [
+        "ps -p"
+      ],
+      "type": "single",
+      "_titles": {
+        "29": "How to add a directory to your PATH"
+      }
     },
     {
       "id": 7,
       "question": "If the wrong version of a program keeps running, what needs to change about PATH?",
-      "expect_article_ids": [29],
-      "must_contain": [["beginning", "front", "start"]],
+      "expect_article_ids": [
+        29
+      ],
+      "must_contain": [
+        [
+          "beginning",
+          "front",
+          "start"
+        ]
+      ],
       "type": "single",
-      "note": "The article says 'beginning'; 'front of your PATH' is equally correct and should not score wrong."
+      "note": "The article says 'beginning'; 'front of your PATH' is equally correct and should not score wrong.",
+      "_titles": {
+        "29": "How to add a directory to your PATH"
+      }
     },
-
     {
       "id": 8,
       "question": "Across both Django posts, what does the author like about migrations, and how many have they run?",
-      "expect_article_ids": [23, 1],
-      "must_contain": [["automatic", "automatically"], "19"],
+      "expect_article_ids": [
+        23,
+        1
+      ],
+      "must_contain": [
+        [
+          "automatic",
+          "automatically"
+        ],
+        "19"
+      ],
       "type": "multi",
-      "note": "MULTI: 23 says migrations are generated automatically; only 1 gives the count of 19."
+      "note": "MULTI: 23 says migrations are generated automatically; only 1 gives the count of 19.",
+      "_titles": {
+        "23": "Some notes on starting to use Django",
+        "1": "Some more things about Django I've been enjoying"
+      }
     },
     {
       "id": 9,
       "question": "What does the author use SQLite for in the Django project, and what problem did they hit operating it?",
-      "expect_article_ids": [23, 2],
-      "must_contain": [["VACUUM INTO", "vacuum"], "ANALYZE"],
+      "expect_article_ids": [
+        23,
+        2
+      ],
+      "must_contain": [
+        [
+          "VACUUM INTO",
+          "vacuum"
+        ],
+        "ANALYZE"
+      ],
       "type": "multi",
-      "note": "MULTI: 23 explains choosing SQLite and backing up with VACUUM INTO; 2 holds the operational problem."
+      "note": "MULTI: 23 explains choosing SQLite and backing up with VACUUM INTO; 2 holds the operational problem.",
+      "_titles": {
+        "23": "Some notes on starting to use Django",
+        "2": "Learning a few things about running SQLite"
+      }
     },
     {
       "id": 10,
       "question": "How does the author describe Django's ORM syntax for joins, and what query builder pattern was built on top of it?",
-      "expect_article_ids": [23, 1],
-      "must_contain": ["__", ["QuerySet", "query set", "queryset"]],
+      "expect_article_ids": [
+        23,
+        1
+      ],
+      "must_contain": [
+        "__",
+        [
+          "QuerySet",
+          "query set",
+          "queryset"
+        ]
+      ],
       "type": "multi",
-      "note": "MULTI: 23 introduces the `__` join syntax; 1 covers the EventQuerySet builder."
+      "note": "MULTI: 23 introduces the `__` join syntax; 1 covers the EventQuerySet builder.",
+      "_titles": {
+        "23": "Some notes on starting to use Django",
+        "1": "Some more things about Django I've been enjoying"
+      }
     },
     {
       "id": 11,
       "question": "What did the author keep from Tailwind after moving off it, and where else do they write about colour palettes?",
-      "expect_article_ids": [3, 4],
-      "must_contain": [["reset", "preflight"], ["palette", "colour", "color"]],
+      "expect_article_ids": [
+        3,
+        4
+      ],
+      "must_contain": [
+        [
+          "reset",
+          "preflight"
+        ],
+        [
+          "palette",
+          "colour",
+          "color"
+        ]
+      ],
       "type": "multi",
-      "note": "MULTI: 3 keeps the preflight reset; 4 is the separate colour-palettes links post it points at."
+      "note": "MULTI: 3 keeps the preflight reset; 4 is the separate colour-palettes links post it points at.",
+      "_titles": {
+        "3": "Moving away from Tailwind, and learning to structure my CSS",
+        "4": "Links to CSS colour palettes"
+      }
     },
     {
       "id": 12,
       "question": "What did the terminal zine cover, and which specific escape-code behaviour is documented separately?",
-      "expect_article_ids": [26, 28],
-      "must_contain": [["escape code", "escape codes"], "ANSI"],
+      "expect_article_ids": [
+        26,
+        28
+      ],
+      "must_contain": [
+        [
+          "escape code",
+          "escape codes"
+        ],
+        "ANSI"
+      ],
       "type": "multi",
-      "note": "MULTI: 26 is the zine announcement, 28 is the ANSI-escape-codes deep dive. 'reset' was dropped from the second slot after checking article 28 -- it discusses `reset` nowhere (0 occurrences), so accepting it would have credited an answer the source cannot support. Ground truth is only ground truth if you grep for it."
+      "note": "MULTI: 26 is the zine announcement, 28 is the ANSI-escape-codes deep dive. 'reset' was dropped from the second slot after checking article 28 -- it discusses `reset` nowhere (0 occurrences), so accepting it would have credited an answer the source cannot support. Ground truth is only ground truth if you grep for it.",
+      "_titles": {
+        "26": "New zine: The Secret Rules of the Terminal",
+        "28": "Standards for ANSI escape codes"
+      }
     },
     {
       "id": 13,
       "question": "What editor did the author switch to, and what did they say about configuring their shell the same way?",
-      "expect_article_ids": [25],
-      "must_contain": ["Helix", "fish"],
+      "expect_article_ids": [
+        25
+      ],
+      "must_contain": [
+        "Helix",
+        "fish"
+      ],
       "type": "multi",
-      "note": "MULTI in intent: the fish comparison is what motivates the switch, and both halves live in 25, so the id list stays single. The type describes the question; eval.py scores against the ids either way."
+      "note": "MULTI in intent: the fish comparison is what motivates the switch, and both halves live in 25, so the id list stays single. The type describes the question; eval.py scores against the ids either way.",
+      "_titles": {
+        "25": "Notes on switching to Helix from vim"
+      }
     },
-
     {
       "id": 14,
       "question": "How many copies of the terminal zine were sold in the first week?",
@@ -178,28 +309,51 @@
       "type": "unanswerable",
       "note": "NEAR-MISS: 25 quotes that exact panic and links the open issue. It never says it was fixed, in any version. Presupposition-loaded on purpose."
     },
-
     {
       "id": 18,
       "question": "sqlite analyze slow query django",
-      "expect_article_ids": [2],
-      "must_contain": ["ANALYZE"],
+      "expect_article_ids": [
+        2
+      ],
+      "must_contain": [
+        "ANALYZE"
+      ],
       "type": "vague",
-      "note": "VAGUE: keywords, no grammar, no question mark. Same target as Q1; the pair measures what the lazy phrasing costs."
+      "note": "VAGUE: keywords, no grammar, no question mark. Same target as Q1; the pair measures what the lazy phrasing costs.",
+      "_titles": {
+        "2": "Learning a few things about running SQLite"
+      }
     },
     {
       "id": 19,
       "question": "pipe grep no output why",
-      "expect_article_ids": [33],
-      "must_contain": ["buffer"],
-      "type": "vague"
+      "expect_article_ids": [
+        33
+      ],
+      "must_contain": [
+        "buffer"
+      ],
+      "type": "vague",
+      "_titles": {
+        "33": "Why pipes sometimes get \"stuck\": buffering"
+      }
     },
     {
       "id": 20,
       "question": "add folder to path zsh",
-      "expect_article_ids": [29],
-      "must_contain": [[".zshrc", "zshrc"]],
-      "type": "vague"
+      "expect_article_ids": [
+        29
+      ],
+      "must_contain": [
+        [
+          ".zshrc",
+          "zshrc"
+        ]
+      ],
+      "type": "vague",
+      "_titles": {
+        "29": "How to add a directory to your PATH"
+      }
     }
   ]
 }

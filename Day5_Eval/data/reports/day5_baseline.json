@@ -31,7 +31,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.5923413634300232,
-      "answer": "Running `ANALYZE` fixed the slow full\u2011text search query, cutting the execution time from about\u202f5\u202fseconds to roughly\u202f0.05\u202fseconds \u2013 a speed\u2011up on the order of a hundred\u2011fold\u30101\u3011.",
+      "answer": "Running `ANALYZE` fixed the slow full\u2011text search query, cutting the execution time from about\u202f5\u202fseconds down to roughly\u202f0.05\u202fseconds\u2014a speed\u2011up on the order of a hundred\u2011fold\u30101\u3011.",
       "error": ""
     },
     {
@@ -52,12 +52,14 @@
       ],
       "top_1": true,
       "top_5": true,
-      "answer_correct": true,
+      "answer_correct": false,
       "refused": false,
       "refused_before_llm": false,
-      "missing_tokens": [],
+      "missing_tokens": [
+        "5 second"
+      ],
       "best_similarity": 0.5880073308944702,
-      "answer": "The cleanup\u202fDELETE statements run for longer than the 5\u2011second lock timeout, so they keep the SQLite write lock held while they execute. When another worker later tries to write, it hits the timeout, cannot obtain the lock, and crashes (the VM shuts down) because it couldn\u2019t write to the database\u30101\u2020L1-L4\u3011\u30102\u2020L1-L2\u3011.",
+      "answer": "The cleanup DELETE statements run for more than five seconds, holding SQLite\u2019s write lock. While that lock is held, another worker tries to write, hits the five\u2011second timeout, cannot obtain the lock, and then crashes because it cannot write to the database and the VM shuts down\u202f[1][2].",
       "error": ""
     },
     {
@@ -82,7 +84,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.6684603691101074,
-      "answer": "The post lists two ways to back up a SQLite database: using **restic** (way\u202f1) and using **Litestream** (way\u202f2)\u30101\u2020L1-L3\u3011\u30105\u2020L1-L3\u3011.",
+      "answer": "The post outlines two backup approaches for SQLite:  \n\n1. Using **restic** to back up the database file (e.g., after a `VACUUM INTO`), and  \n2. Using **Litestream** to replicate and retain incremental backups.\u202f[1][5]",
       "error": ""
     },
     {
@@ -102,7 +104,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.6288093328475952,
-      "answer": "Adding a second\u202f`grep` puts the output of the first\u202f`grep` into a pipe instead of directly to the terminal.\u202fWhen\u202f`grep`\u2019s stdout is not a terminal it switches from line\u2011buffering to block\u2011buffering (about 8\u202fKB), so it holds its matches in memory until the buffer fills or the program exits\u202f\u2014\u202fit never writes them to the pipe in the meantime\u202f[5][3]. Because the first\u202f`grep` doesn\u2019t flush its data, the second\u202f`grep` receives nothing and no output appears\u202f[1][2].",
+      "answer": "Adding a second\u202f`grep` puts the output of the first\u202f`grep` into a pipe instead of directly to the terminal.\u202f`grep` (like many programs) checks whether its stdout is a terminal with\u202f`isatty`; if it is, it uses line\u2011buffering and prints each matching line immediately, but if stdout is a pipe it switches to block\u2011buffering (typically ~8\u202fKB) and does not write anything until the buffer fills or the program exits\u202f[5][3][8].\u202fBecause the first\u202f`grep` now buffers its output, the second\u202f`grep` receives nothing until the buffer is flushed, so the pipeline appears to produce no output.",
       "error": ""
     },
     {
@@ -122,7 +124,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.6184902191162109,
-      "answer": "The flag is `--line\u2011buffered` (or `-\u2011\u2011line\u2011buffered`), which tells\u202fgrep to use line buffering so each matching line is written out immediately when its output is a pipe\u30102\u2020L9-L12\u3011\u30109\u2020L1-L4\u3011",
+      "answer": "The flag is\u202f`--line-buffered`\u202f\u2014 it tells\u202f`grep`\u202fto use line buffering so each matching line is printed as soon as it\u2019s read, even when its output is a pipe\u30102\u2020L1-L4\u3011\u30109\u2020L1-L4\u3011",
       "error": ""
     },
     {
@@ -189,7 +191,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.6615704298019409,
-      "answer": "The author likes that Django creates migration scripts automatically when a model is added, changed, or removed \u2013 it feels \u201cmagic\u201d and lets them edit the database just by editing\u202f`models.py`\u202f[1][2].  So far they have run 19 database migrations\u202f[1].",
+      "answer": "The author appreciates that Django creates migration scripts automatically\u2014just edit a model and Django generates the migration, which feels \u201clike magic\u201d and makes changing the database easy\u30102\u3011. Across the two posts they note that they have already run\u202f19\u202fdatabase migrations\u30101\u3011.",
       "error": ""
     },
     {
@@ -214,10 +216,11 @@
       "refused": false,
       "refused_before_llm": false,
       "missing_tokens": [
+        "VACUUM INTO | vacuum",
         "ANALYZE"
       ],
       "best_similarity": 0.7824341058731079,
-      "answer": "The author is using SQLite as the database backend for a Django web site\u202f\u2014\u202fthe Django ORM is pointed at a single SQLite file and they even enable WAL mode and use\u202f`VACUUM INTO` for backups\u202f[1][3].  The difficulty they ran into was that, despite SQLite\u2019s simplicity, they \u201cdo not know a lot about operating databases,\u201d so managing SQLite (e.g., tuning it for production) proved harder than expected\u202f[1][3].",
+      "answer": "The author is using SQLite as the database backend for his Django web site\u202f\u2014\u202fit is the project\u2019s primary data store.  However, once he started running it he ran into trouble because he \u201cdid not know a lot about operating databases\u201d and discovered that, despite its simplicity, SQLite is still a full\u2011featured database that can be tricky to manage in production\u30103\u2020L1-L4\u3011\u30101\u2020L1-L3\u3011.",
       "error": ""
     },
     {
@@ -240,7 +243,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.7269415259361267,
-      "answer": "The author notes that Django\u2019s ORM lets you follow relationships with a double\u2011underscore, so a lookup like  \n\n```python\nZine.objects.exclude(product__order__email_hash=email_hash)\n```  \n\nuses `__` to tell Django to generate the necessary JOINs across the related tables\u202f[1].  \n\nOn top of that they created a query\u2011builder style by defining a custom `QuerySet` subclass whose methods each add a filter and return the queryset, allowing calls such as  \n\n```python\nEvents.objects.approved().for_tab(tab).with_festivals(...).is_free(...).is_outdoors(...)\n```  \n\nto be chained together\u202f[4].",
+      "answer": "The author says that Django\u2019s ORM lets you follow relationships with a double\u2011underscore, so a join is written as a \u201c`__`\u201d lookup (e.g., `product__order__email_hash`) which is short, readable and hides the underlying SQL joins\u202f[1].  \nOn top of that they built a query\u2011builder style by creating a custom `QuerySet` subclass that provides chainable methods (such as `approved()`, `for_tab()`, `with_festivals()`, etc.) which each add their own `filter()` clauses to the query\u202f[4][8].",
       "error": ""
     },
     {
@@ -263,7 +266,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.6429664492607117,
-      "answer": "The author kept the Tailwind systems they liked \u2013 the reset stylesheet, the colour\u2011palette system, and the font\u2011scale \u2013 when they moved to vanilla CSS\u30103\u3011.  \nThey also discuss colour palettes in a separate blog post titled \u201cCSS colour palettes\u201d (https://jvns.ca/blog/2026/05/04/css-colour-palettes/)\u30103\u3011.",
+      "answer": "The author kept Tailwind\u2019s\u202fsystemic pieces\u202f\u2013 the reset stylesheet, the colour\u2011palette system, and the font\u2011scale \u2013 and reused those ideas in his own vanilla\u2011CSS code\u202f[3].\u202fHe also writes about colour palettes in a separate blog post titled \u201cCSS colour palettes\u201d on his site (https://jvns.ca/blog/2026/05/04/css-colour-palettes/)\u202f[3].",
       "error": ""
     },
     {
@@ -287,7 +290,7 @@
         "ANSI"
       ],
       "best_similarity": 0.632438063621521,
-      "answer": "The \u201cSecret Rules of the Terminal\u201d zine walked through a handful of practical terminal tricks \u2013 for example how to copy text to the clipboard over SSH, what the `reset` command actually does (`stty sane; sleep\u202f1; tput reset`), how to capture the invisible escape sequences a program emits, and why the built\u2011in REPLs on macOS are difficult to use because they rely on\u202f`libedit`\u202finstead of\u202f`readline`\u202f[4].  \n\nOne escape\u2011code behaviour that is treated in its own discussion is the OSC\u202f52 sequence that lets a program copy data to the system clipboard\u202f[2].",
+      "answer": "The zine \u201cThe Secret Rules of the Terminal\u201d walked through a handful of concrete terminal tricks \u2013 how to copy text to the clipboard over\u202fSSH, what the\u202f`reset` command actually does (`stty sane; sleep\u202f1; tput reset`), how to capture the invisible escape codes a program emits, and why the built\u2011in REPLs on macOS (e.g.\u202f`sqlite3`) are annoying because they use\u202f`libedit` instead of\u202f`readline`\u202f[4].  \n\nThe one escape\u2011code behaviour that is treated in its own entry is the OSC\u202f52 sequence that lets terminal applications copy text to the system clipboard\u202f[2].",
       "error": ""
     },
     {
@@ -422,7 +425,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.668267548084259,
-      "answer": "Running `ANALYZE` on the SQLite database can dramatically speed up a slow Django ORM query.\u202fAfter collecting statistics with `ANALYZE`, SQLite was able to choose a much better query plan, dropping a 5\u2011second query to a few hundredths of a second\u202f[2].",
+      "answer": "Running `ANALYZE` on the SQLite database can dramatically speed up a slow Django ORM query.\u202fAfter collecting statistics with `ANALYZE`, SQLite was able to choose a much better query plan, dropping a 5\u2011second query to a few hundredths of a second\u30102\u3011.  So if a Django query on SQLite is unexpectedly slow, run `ANALYZE` to update the optimizer\u2019s statistics.",
       "error": ""
     },
     {
@@ -442,7 +445,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.616989254951477,
-      "answer": "`grep` buffers its output when its stdout is not a terminal. In a pipeline such as  \n\n```\ntail -f file | grep thing1 | grep thing2\n```  \n\nthe first `grep` writes to a pipe, so it uses block buffering (about 8\u202fKB) instead of line\u2011by\u2011line output. It keeps its matches in the buffer until the buffer fills or the program exits, so the second `grep` receives nothing and you see no output even though matches exist\u30102\u2020L1-L4\u3011\u30103\u2020L1-L2\u3011\u30104\u2020L1-L4\u3011. This buffering behavior is why the pipeline appears \u201cstuck\u201d.",
+      "answer": "`grep` buffers its output when its stdout is not a terminal. In a pipeline such as  \n\n```\ntail -f file | grep thing1 | grep thing2\n```  \n\nthe first `grep` writes to another pipe, so it uses block buffering (\u22488\u202fKB) instead of line\u2011by\u2011line output. If the amount of matching data never reaches the buffer size, the data stays in the buffer and nothing appears on the screen, making it look as if the pipe is \u201cstuck\u201d\u202f[2][4][5].  \n\nThus the lack of output is caused by `grep`\u2019s block\u2011buffering behavior when writing to a pipe.",
       "error": ""
     },
     {
@@ -462,7 +465,7 @@
       "refused_before_llm": false,
       "missing_tokens": [],
       "best_similarity": 0.6520522236824036,
-      "answer": "To add a directory to\u202f`PATH` in\u202fzsh, edit your\u202f`~/.zshrc` (or whatever file your zsh reads) and add a line such as:\n\n```zsh\n# using the zsh array syntax\npath=(\n  $path\n  /full/or/relative/path/to/your/folder\n)\n```\n\n(You can also use the more familiar `export PATH=$PATH:/your/folder`, but the `path=` array form is the idiomatic zsh way.)\u202f\u30101\u3011",
+      "answer": "To add a directory to\u202f`PATH` in\u202fzsh, edit your\u202f`~/.zshrc` (or whatever file your zsh reads) and add a line such as:\n\n```zsh\n# using the zsh array syntax\npath=(\n  $path\n  /full/or/relative/path/to/your/folder\n)\n```\n\n(You can also use the more familiar `export PATH=$PATH:/your/folder`, but the `path=` array form is the idiomatic zsh way.)\u202f[1]",
       "error": ""
     }
   ]

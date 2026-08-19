@@ -21,7 +21,7 @@ import json
 import pytest
 
 import eval as eval_script
-from eval import Outcome, missing, normalise, rank_articles, report
+from eval import Outcome, check_corpus_drift, missing, normalise, rank_articles, report
 
 
 class FakeChunk:
@@ -163,6 +163,78 @@ class TestReport:
         assert len(text.splitlines()) == 5
 
 
+class FakeArticle:
+    def __init__(self, id: int, title: str) -> None:
+        self.id = id
+        self.title = title
+
+
+class TestCorpusDrift:
+    """The guard against ground truth that has quietly gone stale.
+
+    `expect_article_ids` are database ids. A re-crawl renumbers them, nothing
+    raises, and every question is scored against the wrong article -- a
+    confident number that means nothing. Article 113 really did disappear from
+    the corpus between the baseline run and the next day, so this is not
+    hypothetical.
+    """
+
+    @staticmethod
+    def _patch(monkeypatch, articles):
+        monkeypatch.setattr(eval_script, "load_articles", lambda config: articles)
+
+    def test_no_problems_when_titles_still_match(self, monkeypatch):
+        self._patch(monkeypatch, [FakeArticle(2, "Running SQLite")])
+        questions = [{"id": 1, "_titles": {"2": "Running SQLite"}}]
+        assert check_corpus_drift(questions, None) == []
+
+    def test_detects_a_renumbered_id(self, monkeypatch):
+        self._patch(monkeypatch, [FakeArticle(2, "Something Else Entirely")])
+        questions = [{"id": 1, "_titles": {"2": "Running SQLite"}}]
+        problems = check_corpus_drift(questions, None)
+        assert len(problems) == 1
+        assert "Q1" in problems[0] and "Running SQLite" in problems[0]
+
+    def test_detects_an_article_that_vanished(self, monkeypatch):
+        self._patch(monkeypatch, [FakeArticle(5, "Unrelated")])
+        questions = [{"id": 3, "_titles": {"113": "<antirez>"}}]
+        problems = check_corpus_drift(questions, None)
+        assert len(problems) == 1
+        assert "gone" in problems[0]
+
+    def test_a_later_correct_claim_cannot_mask_an_earlier_wrong_one(self, monkeypatch):
+        """REGRESSION. This bug shipped and was caught by deliberate corruption.
+
+        Article 2 is referenced by both Q1 and Q9. The first implementation
+        flattened every question's `_titles` into one dict keyed by article
+        id, so Q9's correct entry overwrote Q1's corrupted one and the guard
+        reported "no drift" on an eval set that had drifted -- the guard
+        against silent wrong numbers, failing silently and wrongly.
+        """
+        self._patch(monkeypatch, [FakeArticle(2, "Running SQLite")])
+        questions = [
+            {"id": 1, "_titles": {"2": "A Totally Different Article"}},
+            {"id": 9, "_titles": {"2": "Running SQLite"}},
+        ]
+        problems = check_corpus_drift(questions, None)
+        assert problems, "a wrong claim on Q1 must not be masked by Q9"
+        assert "Q1" in problems[0]
+
+    def test_no_titles_recorded_means_no_check(self, monkeypatch):
+        """Absent metadata must not be reported as drift."""
+        self._patch(monkeypatch, [FakeArticle(1, "x")])
+        assert check_corpus_drift([{"id": 1}], None) == []
+
+    def test_an_unreachable_api_is_reported_not_raised(self, monkeypatch):
+        def boom(config):
+            raise eval_script.CorpusError("connection refused")
+
+        monkeypatch.setattr(eval_script, "load_articles", boom)
+        problems = check_corpus_drift([{"id": 1, "_titles": {"2": "x"}}], None)
+        assert len(problems) == 1
+        assert "could not verify" in problems[0]
+
+
 class TestEvalSet:
     """The question file is data, and wrong data scores wrongly and silently."""
 
@@ -192,3 +264,15 @@ class TestEvalSet:
             if q["type"] != "unanswerable":
                 assert q["expect_article_ids"], q["id"]
                 assert q["must_contain"], q["id"]
+
+    def test_every_expected_id_has_a_recorded_title(self, questions):
+        """Otherwise the drift guard silently skips that id.
+
+        The check only verifies ids it has a title for, so an id missing from
+        `_titles` is unguarded -- and unguarded is indistinguishable from
+        verified in the output.
+        """
+        for q in questions:
+            titles = q.get("_titles", {})
+            for article_id in q["expect_article_ids"]:
+                assert str(article_id) in titles, f"Q{q['id']} id {article_id}"

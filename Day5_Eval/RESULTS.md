@@ -1,7 +1,8 @@
 # RAG evaluation baseline
 
-Run `python eval.py`. Everything below is the output of that command plus what
-it means. This is the number the rest of the week gets compared against.
+Run `docker compose run --rm eval` (or `python eval.py`). Everything below is
+the output of that command plus what it means. This is the number the rest of
+the week gets compared against. How to run it is in [README.md](README.md).
 
 ```
 Questions:         20
@@ -100,12 +101,23 @@ content words. Worth not over-reading from three questions.
 
 Two identical runs, same corpus, same config:
 
-| | run 1 | run 2 |
-|---|---|---|
-| Top-1 | 14/16 | 14/16 |
-| Top-5 | 15/16 | 15/16 |
-| Answer correct | 12/16 | **11/16** |
-| Refused correctly | 4/4 | 4/4 |
+| | run 1 | run 2 | run 3 |
+|---|---|---|---|
+| Top-1 | 14/16 | 14/16 | 14/16 |
+| Top-5 | 15/16 | 15/16 | 15/16 |
+| Answer correct | 12/16 | **11/16** | **11/16** |
+| Refused correctly | 4/4 | 4/4 | 4/4 |
+
+Run 3 was taken from the standalone `Day5_Eval` stack after the split, against
+the 112-article corpus. Retrieval and refusal are identical across all three;
+only the answer line moves.
+
+Run 3's extra miss versus run 1 is **Q2**, where the answer did not carry
+`5 second`. Run 2's five-line output was captured but not its per-question
+detail, so I cannot say whether it lost the same question — only that the line
+moved by one in both cases. Worth recording precisely because the useful
+version of this table is "which question flipped", and I did not keep enough
+to answer that. Later runs use `--json-out`.
 
 Retrieval is deterministic and did not move. The answer line moved by one
 question on its own. **A change that shifts "Answer correct" by 1 has not been
@@ -136,7 +148,33 @@ whitespace before matching.
 
 Both classes of bug fail *quietly* — they print a plausible low number, not an
 error. That is why the scoring is unit-tested (`tests/test_eval_script.py`,
-26 tests) rather than trusted.
+34 tests) rather than trusted.
+
+## The corpus drifted the next day, which is why there is now a guard
+
+`expect_article_ids` are database ids. The day after the baseline was
+recorded, the corpus went from 113 articles to 112 — article 113 (`<antirez>`)
+was gone, the Day 3 crawler having been re-run at some point.
+
+No question referenced it and all 10 ids used here still map to their expected
+titles, so **the baseline above stands unchanged**. But that is luck. Had the
+ids renumbered instead, nothing would have errored: every question would still
+have been scored, against the wrong articles, and the report would have
+printed a confident number that meant nothing.
+
+So each question now records the titles it expects, and every run verifies
+them against the live API before scoring. On a mismatch it refuses to print a
+score and names the question. Same for an empty index, which would otherwise
+score 0/16 — indistinguishable from a broken retriever.
+
+**The guard shipped with a bug of exactly the kind it exists to prevent.** The
+first implementation flattened every question's expected titles into one dict
+keyed by article id. Article 2 is referenced by both Q1 and Q9, so Q9's
+correct entry silently overwrote Q1's — and when I corrupted Q1's title to
+test the guard, it reported "no drift" and scored anyway. A guard against
+silent wrong numbers, failing silently and wrongly. Found by deliberately
+corrupting an entry and checking the failure actually happened rather than
+assuming it did; now a regression test.
 
 ## Known limits of this baseline
 

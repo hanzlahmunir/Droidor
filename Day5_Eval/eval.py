@@ -59,6 +59,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.answerer import AnswerError, generate_answer, looks_like_refusal  # noqa: E402
 from app.config import Config  # noqa: E402
+from app.corpus import CorpusError, load_articles  # noqa: E402
 from app.embedder import SentenceTransformerEmbedder  # noqa: E402
 from app.retriever import RetrievedChunk, retrieve  # noqa: E402
 from app.storage import open_collection  # noqa: E402
@@ -119,6 +120,77 @@ def load_eval_set(path: Path = EVAL_SET) -> list[dict]:
     if not questions:
         raise SystemExit(f"{path} contains no questions.")
     return questions
+
+
+def check_corpus_drift(questions: list[dict], config: Config) -> list[str]:
+    """Confirm the article ids in the eval set still mean what they meant.
+
+    WHY THIS EXISTS. `expect_article_ids` are database ids, and they are only
+    ground truth for as long as those ids point at the articles they pointed
+    at when the questions were written. Re-crawl in Day 3, or ingest into a
+    rebuilt table, and the ids renumber. Nothing errors. Every question is
+    still scored -- against the wrong articles -- and the report prints a
+    confident number that means nothing.
+
+    That is the same failure shape as the three ground-truth bugs in the first
+    baseline run: not a crash, a plausible wrong score. The fix there was to
+    grep the corpus instead of trusting memory, and this is that check made
+    automatic.
+
+    `_expected_titles` in eval_set.json records id -> title as it was when the
+    questions were written. This compares against the live API and returns a
+    list of human-readable problems, empty when the corpus is intact.
+    """
+    # Collect (question id, article id, title) rather than flattening into one
+    # dict keyed by article id.
+    #
+    # THIS WAS A BUG, and it is the same shape as the ones this function is
+    # here to catch. Article 2 is referenced by both Q1 and Q9, so a flat
+    # `expected.update(...)` let Q9's entry overwrite Q1's -- and a corrupted
+    # title on Q1 was silently replaced by the correct one from Q9. The guard
+    # reported "no drift" on an eval set that had drifted. Verified by
+    # deliberately corrupting one entry and watching the check pass.
+    #
+    # A disagreement BETWEEN questions about what an id means is itself a
+    # defect worth reporting, and flattening hid that too.
+    claims: list[tuple[int, str, str]] = [
+        (entry["id"], article_id, title)
+        for entry in questions
+        for article_id, title in entry.get("_titles", {}).items()
+    ]
+    if not claims:
+        return []
+
+    try:
+        articles = load_articles(config)
+    except CorpusError as exc:
+        # Not fatal on its own: --no-llm on a warm index is still meaningful
+        # if the API is down. Reported rather than raised.
+        return [f"could not verify the corpus: {exc}"]
+
+    live = {str(a.id): a.title for a in articles}
+    problems: list[str] = []
+    seen: set[tuple[str, str]] = set()
+
+    for question_id, article_id, title in sorted(claims, key=lambda c: (int(c[1]), c[0])):
+        actual = live.get(article_id)
+        if actual is None:
+            problem = f"id {article_id} is gone from the corpus; expected {title!r}"
+        elif actual.strip() != title.strip():
+            problem = (
+                f"id {article_id} is now {actual!r}, but Q{question_id} "
+                f"expects {title!r}"
+            )
+        else:
+            continue
+        # One line per distinct (id, claimed title), not one per question, so
+        # an id used by four questions does not print four identical lines.
+        key = (article_id, title)
+        if key not in seen:
+            seen.add(key)
+            problems.append(problem)
+
+    return problems
 
 
 def rank_articles(chunks: list[RetrievedChunk]) -> list[int]:
@@ -301,18 +373,43 @@ def main() -> int:
         help="Retrieval only: no API calls, no answers, no key needed.",
     )
     parser.add_argument("--json-out", default=None, help="Write full results as JSON.")
+    parser.add_argument(
+        "--skip-corpus-check",
+        action="store_true",
+        help="Score even if the corpus has drifted. The number will be wrong.",
+    )
     args = parser.parse_args()
 
     config = Config()
     collection = open_collection(config)
     if collection.count() == 0:
+        # An empty index and a broken retriever both score 0/16. Refusing to
+        # score is the only way those two stay distinguishable.
         raise SystemExit(
-            "Nothing is ingested, so every question would score zero. Run:\n"
+            "The vector store is empty, so every question would score zero.\n"
+            "Day 5 measures the index Day 4 builds; it does not ingest.\n"
+            "Run, from the Day4_RAG directory:\n"
             "  docker compose run --rm rag ingest --reset"
         )
 
-    embedder = SentenceTransformerEmbedder(config)
     questions = load_eval_set()
+
+    problems = check_corpus_drift(questions, config)
+    if problems:
+        message = "\n".join(f"  - {p}" for p in problems)
+        if not args.skip_corpus_check:
+            raise SystemExit(
+                "The corpus has drifted since these questions were written, so\n"
+                "expect_article_ids no longer identify the right articles and any\n"
+                "score printed now would be measured against wrong ground truth:\n"
+                f"{message}\n\n"
+                "Re-verify eval_set.json against the current corpus before trusting\n"
+                "a number. To score anyway (the result is not comparable to\n"
+                "RESULTS.md), pass --skip-corpus-check."
+            )
+        print(f"WARNING: corpus drift, scoring anyway:\n{message}\n", file=sys.stderr)
+
+    embedder = SentenceTransformerEmbedder(config)
     use_llm = not args.no_llm
 
     outcomes: list[Outcome] = []
