@@ -12,9 +12,15 @@ Answer correct:    12/16  (75%)
 Refused correctly:  4/4
 ```
 
-Recorded 2026-08-18. Corpus 113 articles / 2195 chunks; `CHUNK_SIZE=700`,
+Recorded 2026-08-18 against 113 articles / 2195 chunks; `CHUNK_SIZE=700`,
 `TOP_K=12`, `SIMILARITY_FLOOR=0.425`, answers from `openai/gpt-oss-120b`.
 Full per-question detail in `data/reports/day5_baseline.json`.
+
+The corpus reads **112** articles from 2026-08-19 onward — article 113 was
+dropped by a Day 3 re-crawl. The index is unchanged at 2195 chunks and no
+question referenced that article, so the numbers above still reproduce; see
+the drift section below for why this is now checked automatically rather than
+noticed by luck.
 
 ## Reading the denominators
 
@@ -99,7 +105,7 @@ content words. Worth not over-reading from three questions.
 
 ## Run-to-run variance, measured
 
-Two identical runs, same corpus, same config:
+Three runs, same corpus, same config, no code change between them:
 
 | | run 1 | run 2 | run 3 |
 |---|---|---|---|
@@ -119,10 +125,9 @@ moved by one in both cases. Worth recording precisely because the useful
 version of this table is "which question flipped", and I did not keep enough
 to answer that. Later runs use `--json-out`.
 
-Retrieval is deterministic and did not move. The answer line moved by one
-question on its own. **A change that shifts "Answer correct" by 1 has not been
-shown to do anything** — that is inside the noise. Retrieval changes of 1 are
-real. The baseline above is run 1; both are recorded because a baseline
+**A change that shifts "Answer correct" by 1 has not been shown to do
+anything** — that is inside the noise. Retrieval changes of 1 are real. The
+baseline at the top is run 1; all three are recorded because a baseline
 without its noise floor invites reading meaning into drift.
 
 ## Three ground-truth bugs this caught, in my own eval set
@@ -148,7 +153,7 @@ whitespace before matching.
 
 Both classes of bug fail *quietly* — they print a plausible low number, not an
 error. That is why the scoring is unit-tested (`tests/test_eval_script.py`,
-34 tests) rather than trusted.
+33 tests) rather than trusted.
 
 ## The corpus drifted the next day, which is why there is now a guard
 
@@ -209,4 +214,4 @@ docker compose --profile cli run --rm --entrypoint python rag eval.py --no-llm
 docker compose --profile cli build tests && docker compose --profile cli run --rm tests
 ```
 
-126 tests, fully offline.
+133 tests, fully offline: Day 5's 33 plus Day 4's 100.

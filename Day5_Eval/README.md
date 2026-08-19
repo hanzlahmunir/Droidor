@@ -155,7 +155,7 @@ Day5_Eval/
   RESULTS.md         the committed baseline
   Dockerfile         FROM the Day 4 image
   docker-compose.yml builds ../Day1_Documents-API and ../Day4_RAG from source
-  tests/             34 tests for the scoring itself
+  tests/             33 tests for the scoring itself
   data/reports/      --json-out lands here
 ```
 
@@ -175,7 +175,7 @@ The costs of that choice, stated plainly:
   re-chunk anything at eval time, but `TOP_K` and `SIMILARITY_FLOOR` change
   what is retrieved and refused. Change them in Day 4 and you must change them
   here, or the comparison to RESULTS.md is meaningless.
-- **`docker compose run --rm tests` here runs Day 4's suite too** (99 of the
+- **`docker compose run --rm tests` here runs Day 4's suite too** (100 of the
   133). That is deliberate: it proves Day 5 did not break what it measures.
 
 Unlike Day 4, this stack does **not** publish port 8000. Both share one
